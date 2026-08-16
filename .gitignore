@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Production build artifacts
+dist/
+
+# Large model binaries and local caches (downloaded on-demand in browser)
+public/models/
+public/voices/
+
+# Scratch & generated audio files
+*.wav
+test-*.mjs
+
+# Logs and OS files
+*.log
+.DS_Store
+.vscode/
+.idea/

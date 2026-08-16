@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kokoro TTS WebAssembly — Korean Speech Quality Tester</title>
+  <meta name="description" content="Test Kokoro TTS WebAssembly with short Korean sentences in real-time in the browser. Evaluate pronunciation, intonation, and synthesis quality.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Pretendard:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-container">
+        <div class="header-brand">
+          <div class="brand-icon">
+            <span class="icon-pulse"></span>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+              <line x1="12" y1="19" x2="12" y2="22"></line>
+            </svg>
+          </div>
+          <div>
+            <h1 class="brand-title">Kokoro TTS <span class="badge-wasm">WASM</span> Korean Quality Tester</h1>
+            <p class="brand-subtitle">In-Browser WebAssembly / WebGPU Speech Synthesis & Korean Phonetics Benchmark</p>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <div class="model-status-badge" id="modelStatusBadge">
+            <span class="status-indicator status-offline" id="statusDot"></span>
+            <span id="statusText">Model Not Loaded</span>
+          </div>
+          <button id="loadModelBtn" class="btn btn-primary btn-sm">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <span>Load Model (82M WASM)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Loading progress bar -->
+      <div class="progress-bar-container" id="progressBarContainer" style="display: none;">
+        <div class="progress-bar-fill" id="progressBarFill"></div>
+        <div class="progress-info">
+          <span id="progressLabel">Downloading Kokoro weights...</span>
+          <span id="progressPercentage">0%</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="app-main">
+      <div class="app-layout">
+        
+        <!-- Left Column: Input & Presets -->
+        <section class="panel panel-input">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <span class="step-num">1</span>
+              <h2>Korean Test Sentences</h2>
+            </div>
+            <span class="panel-hint">Select a category or type custom Korean</span>
+          </div>
+
+          <!-- Category Tabs -->
+          <div class="category-tabs" id="categoryTabs">
+            <!-- Rendered by JS -->
+          </div>
+
+          <!-- Sentence Preset Cards -->
+          <div class="preset-list" id="presetList">
+            <!-- Rendered by JS -->
+          </div>
+
+          <!-- Custom Sentence Editor Area -->
+          <div class="custom-editor-box">
+            <div class="editor-header">
+              <label for="koreanInput" class="editor-label">Custom / Selected Korean Text (한국어 문장):</label>
+              <div class="char-count" id="charCount">0 characters</div>
+            </div>
+            <textarea id="koreanInput" rows="3" placeholder="테스트할 한국어 문장을 입력하거나 위 프리셋을 선택하세요..."></textarea>
+
+            <!-- IPA Phonetic Preview & Manual Override -->
+            <div class="phonetic-preview-card">
+              <div class="phonetic-preview-header">
+                <div class="payload-header-left">
+                  <span>IPA Phonetic Payload:</span>
+                  <span class="badge-ipa">Pure Monophthongs</span>
+                </div>
+                <button id="toggleManualPhonemeBtn" class="btn-link">Edit Payload</button>
+              </div>
+              <div id="phoneticPreviewText" class="phonetic-text"></div>
+              <textarea id="manualPhonemeInput" class="manual-phoneme-input" rows="2" style="display: none;"></textarea>
+            </div>
+          </div>
+        </section>
+
+        <!-- Right Column: Model Controls, Audio Player & Quality Evaluation -->
+        <div class="right-column-stack">
+          
+          <!-- Generation & Voice Settings Panel -->
+          <section class="panel panel-controls">
+            <div class="panel-header">
+              <div class="panel-title-group">
+                <span class="step-num">2</span>
+                <h2>Voice & Generation Settings</h2>
+              </div>
+            </div>
+
+            <div class="controls-grid">
+              <!-- Voice Selection -->
+              <div class="control-item voice-control-item">
+                <label for="voiceSelect" class="control-label">Select Kokoro Voice Preset:</label>
+                <select id="voiceSelect" class="form-select">
+                  <!-- Rendered by JS -->
+                </select>
+                <div class="voice-description" id="voiceDesc">Heart: Warm, natural female voice (Grade A)</div>
+              </div>
+
+              <!-- Speed Control -->
+              <div class="control-item">
+                <div class="control-label-row">
+                  <label for="speedRange" class="control-label">Speaking Speed:</label>
+                  <span class="control-val" id="speedVal">1.0x</span>
+                </div>
+                <input type="range" id="speedRange" min="0.6" max="1.6" step="0.05" value="1.0" class="form-range">
+                <div class="range-labels">
+                  <span>0.6x (Slow)</span>
+                  <span>1.0x (Normal)</span>
+                  <span>1.6x (Fast)</span>
+                </div>
+              </div>
+
+              <!-- Hardware Device -->
+              <div class="control-item">
+                <label for="deviceSelect" class="control-label">Inference Backend / Quantization:</label>
+                <select id="deviceSelect" class="form-select">
+                  <option value="wasm_q8" selected>WebAssembly (WASM) — Quantized Q8 (Fast, ~85MB)</option>
+                  <option value="webgpu_fp32">WebGPU (Hardware Accelerated FP32)</option>
+                  <option value="wasm_fp32">WebAssembly (WASM) — Full FP32 (~320MB)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Generate Button -->
+            <div class="generate-btn-row">
+              <button id="generateBtn" class="btn btn-primary btn-lg generate-btn">
+                <span class="btn-spinner" id="genSpinner" style="display: none;"></span>
+                <svg id="genIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                <span id="genBtnText">Synthesize Speech (WASM)</span>
+              </button>
+            </div>
+          </section>
+
+          <!-- Audio Player & Visualizer Panel -->
+          <section class="panel panel-player">
+            <div class="panel-header">
+              <div class="panel-title-group">
+                <span class="step-num">3</span>
+                <h2>Audio Synthesis & Waveform</h2>
+              </div>
+              <div class="audio-metrics-badge" id="audioMetrics" style="display: none;">
+                <span id="metricGenTime">0ms</span> • <span id="metricDuration">0.0s</span> • <span id="metricRtf">0.0x RTF</span>
+              </div>
+            </div>
+
+            <!-- Canvas Visualizer -->
+            <div class="visualizer-container">
+              <canvas id="waveformCanvas"></canvas>
+              <div class="visualizer-overlay" id="visualizerEmpty">
+                <span>Audio waveform will appear here after synthesis</span>
+              </div>
+            </div>
+
+            <!-- Audio Player Controls -->
+            <div class="player-controls-row">
+              <button id="playBtn" class="btn btn-circle" disabled>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+              </button>
+
+              <div class="playback-progress-wrap">
+                <div class="time-display" id="currTime">00:00</div>
+                <input type="range" id="seekSlider" min="0" max="100" value="0" step="0.1" class="seek-slider" disabled>
+                <div class="time-display" id="totalTime">00:00</div>
+              </div>
+
+              <div class="player-action-btns">
+                <button id="downloadWavBtn" class="btn btn-secondary btn-sm" disabled title="Download WAV audio file">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                  <span>Download WAV</span>
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <!-- Quality Evaluation & Scoring Scorecard -->
+          <section class="panel panel-eval">
+            <div class="panel-header">
+              <div class="panel-title-group">
+                <span class="step-num">4</span>
+                <h2>Korean Generation Quality Scorecard</h2>
+              </div>
+              <span class="panel-hint">Rate synthesis quality for research logs</span>
+            </div>
+
+            <div class="eval-rubric-grid">
+              <!-- Naturalness -->
+              <div class="eval-row">
+                <div class="eval-meta">
+                  <span class="eval-name">Naturalness & Rhythm (자연스러움 및 운율)</span>
+                  <span class="eval-sub">Does the speech sound human and fluent?</span>
+                </div>
+                <div class="star-rating" data-criteria="naturalness">
+                  <button class="star-btn" data-val="1">★</button>
+                  <button class="star-btn" data-val="2">★</button>
+                  <button class="star-btn" data-val="3">★</button>
+                  <button class="star-btn" data-val="4">★</button>
+                  <button class="star-btn" data-val="5">★</button>
+                  <span class="rating-score">0/5</span>
+                </div>
+              </div>
+
+              <!-- Pronunciation Accuracy -->
+              <div class="eval-row">
+                <div class="eval-meta">
+                  <span class="eval-name">Pronunciation Accuracy (발음 정확도)</span>
+                  <span class="eval-sub">Are Korean consonants, vowels & 받침 clear?</span>
+                </div>
+                <div class="star-rating" data-criteria="pronunciation">
+                  <button class="star-btn" data-val="1">★</button>
+                  <button class="star-btn" data-val="2">★</button>
+                  <button class="star-btn" data-val="3">★</button>
+                  <button class="star-btn" data-val="4">★</button>
+                  <button class="star-btn" data-val="5">★</button>
+                  <span class="rating-score">0/5</span>
+                </div>
+              </div>
+
+              <!-- Intonation & Tone -->
+              <div class="eval-row">
+                <div class="eval-meta">
+                  <span class="eval-name">Intonation & Pitch (억양 및 음높이)</span>
+                  <span class="eval-sub">Does statement/question pitch contour fit Korean?</span>
+                </div>
+                <div class="star-rating" data-criteria="intonation">
+                  <button class="star-btn" data-val="1">★</button>
+                  <button class="star-btn" data-val="2">★</button>
+                  <button class="star-btn" data-val="3">★</button>
+                  <button class="star-btn" data-val="4">★</button>
+                  <button class="star-btn" data-val="5">★</button>
+                  <span class="rating-score">0/5</span>
+                </div>
+              </div>
+
+              <!-- Artifacts / Audio Clarity -->
+              <div class="eval-row">
+                <div class="eval-meta">
+                  <span class="eval-name">Audio Clarity & Artifacts (음질 및 노이즈)</span>
+                  <span class="eval-sub">Free of robotic buzzing, clipping or robotic glitches?</span>
+                </div>
+                <div class="star-rating" data-criteria="clarity">
+                  <button class="star-btn" data-val="1">★</button>
+                  <button class="star-btn" data-val="2">★</button>
+                  <button class="star-btn" data-val="3">★</button>
+                  <button class="star-btn" data-val="4">★</button>
+                  <button class="star-btn" data-val="5">★</button>
+                  <span class="rating-score">0/5</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Notes & Save Evaluation -->
+            <div class="eval-actions-row">
+              <input type="text" id="evalNotes" class="form-input" placeholder="Optional evaluation notes (e.g., 좋은 발음이나 특정 어색한 음절 기록)...">
+              <button id="saveEvalBtn" class="btn btn-secondary btn-sm" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                <span>Save Test Log</span>
+              </button>
+            </div>
+          </section>
+
+        </div>
+      </div>
+
+      <!-- Test History & Comparison Log Table -->
+      <section class="panel panel-history">
+        <div class="panel-header">
+          <div class="panel-title-group">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            <h2>Test Run History & Quality Log</h2>
+          </div>
+          <div class="history-actions">
+            <button id="exportLogsBtn" class="btn btn-outline btn-sm">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              <span>Export JSON Report</span>
+            </button>
+            <button id="clearHistoryBtn" class="btn btn-ghost btn-sm">Clear History</button>
+          </div>
+        </div>
+
+        <div class="history-table-container">
+          <table class="history-table" id="historyTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Korean Text</th>
+                <th>Phonetic Payload</th>
+                <th>Voice</th>
+                <th>Speed</th>
+                <th>Gen Time</th>
+                <th>Quality Score</th>
+                <th>Notes</th>
+                <th>Play / Download</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody">
+              <tr class="empty-row">
+                <td colspan="9">No test runs recorded yet. Generate speech above to add records.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div class="footer-content">
+        <span>Powered by <strong>Kokoro-82M ONNX</strong> + <strong>Transformers.js</strong> + <strong>WebAssembly</strong></span>
+        <span>Runs 100% locally in your browser with zero server latency</span>
+      </div>
+    </footer>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
