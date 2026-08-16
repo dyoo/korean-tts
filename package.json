@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Kokoro TTS WebAssembly Korean Generation Quality Testing Playground",
   "type": "module",
+  "license": "MIT",
   "scripts": {
     "dev": "vite --port 5173",
     "build": "vite build",
