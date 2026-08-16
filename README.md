@@ -97,7 +97,8 @@ console.log(`Storage: ${storage.modelSizeFormatted} (Offline Cached: ${storage.i
 * **`SpeakerInitOptions`**: Configuration for model loading (`modelId`, `dtype`, `device`, `progressCallback`, `requestPersistence`).
 * **`SynthesisInput`**: Discriminated union `{ text: string; voice?: string; speed?: number } | { ipa: string; voice?: string; speed?: number }`.
 * **`SynthesisResult`**: Synthesis outputs (`audio: Float32Array`, `sampleRate`, `durationSec`, `genTimeMs`, `rtf`, `ipa`, `voice`, `speed`, `toWavBlob()`, `toAudioUrl()`, `createAudioElement()`).
-* **`SpeakerProgress`**: Download progress payload (`status`, `progress`, `file`, `loaded`, `total`).
+* **`SpeakerProgress`**: Discriminated union of progress lifecycle events (`SpeakerInitiateProgress`, `SpeakerDownloadProgress`, `SpeakerChunkProgress`, `SpeakerDoneProgress`, `SpeakerReadyProgress`).
+* **`SpeakerProgressStatus`**: `"initiate" | "download" | "progress" | "done" | "ready"`.
 * **`SpeakerProgressCallback`**: `(progress: SpeakerProgress) => void`.
 * **`StorageInfo`**: Offline cache inspection metrics (`isCached`, `modelSizeBytes`, `modelSizeFormatted`, `totalUsageBytes`, `totalUsageFormatted`, `persisted`).
 

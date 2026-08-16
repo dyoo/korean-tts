@@ -12,7 +12,13 @@ export type {
   IpaSynthesisInput,
   BaseSynthesisInput,
   SynthesisResult,
+  SpeakerProgressStatus,
   SpeakerProgress,
+  SpeakerInitiateProgress,
+  SpeakerDownloadProgress,
+  SpeakerChunkProgress,
+  SpeakerDoneProgress,
+  SpeakerReadyProgress,
   SpeakerProgressCallback,
 } from "./korean-speaker";
 

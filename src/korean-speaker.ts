@@ -20,20 +20,72 @@ env.allowLocalModels = false;
 env.allowRemoteModels = true;
 
 /**
- * Progress event payload reported during model download and initialization.
+ * All valid lifecycle status values reported during model downloading and loading.
  */
-export interface SpeakerProgress {
-  /** Current loading state (e.g. 'progress', 'done', 'initiate', 'download') */
-  status: string;
-  /** Percentage of file download completed (0 to 100) */
-  progress?: number;
-  /** Name or path of the file currently being downloaded */
-  file?: string;
-  /** Number of bytes downloaded so far */
-  loaded?: number;
-  /** Total file size in bytes */
-  total?: number;
+export type SpeakerProgressStatus =
+  | "initiate"
+  | "download"
+  | "progress"
+  | "done"
+  | "ready";
+
+/**
+ * Reported when a file download is initiated.
+ */
+export interface SpeakerInitiateProgress {
+  status: "initiate";
+  file: string;
+  name?: string;
 }
+
+/**
+ * Reported when the file download stream starts receiving data.
+ */
+export interface SpeakerDownloadProgress {
+  status: "download";
+  file: string;
+  name?: string;
+}
+
+/**
+ * Reported periodically during active chunk download with exact percentages and byte counts.
+ */
+export interface SpeakerChunkProgress {
+  status: "progress";
+  file: string;
+  name?: string;
+  progress: number;
+  loaded: number;
+  total: number;
+}
+
+/**
+ * Reported when an individual file finishes downloading.
+ */
+export interface SpeakerDoneProgress {
+  status: "done";
+  file: string;
+  name?: string;
+}
+
+/**
+ * Reported when all model components are loaded into WebAssembly / WebGPU and ready.
+ */
+export interface SpeakerReadyProgress {
+  status: "ready";
+  task?: string;
+  model?: string;
+}
+
+/**
+ * Strongly-typed discriminated union for model loading progress events.
+ */
+export type SpeakerProgress =
+  | SpeakerInitiateProgress
+  | SpeakerDownloadProgress
+  | SpeakerChunkProgress
+  | SpeakerDoneProgress
+  | SpeakerReadyProgress;
 
 /**
  * Callback function to monitor model download progress.
