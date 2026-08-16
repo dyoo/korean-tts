@@ -1,73 +1,110 @@
-# Kokoro TTS WebAssembly — Korean Speech Quality Tester
+# Korean Kokoro TTS — Phonology Engine & WASM Playground
 
-A lightweight, zero-backend WebAssembly (WASM) and WebGPU speech synthesis playground to evaluate and benchmark **Kokoro-82M TTS** on short Korean sentences.
+A lightweight, zero-backend WebAssembly (WASM) and WebGPU speech synthesis engine and testing playground for running **Kokoro-82M TTS** on Korean sentences.
 
-The repository is **under 100 KB**; all neural network model weights and voice embeddings are fetched **on-demand** from the Hugging Face CDN upon first interaction and stored in the browser's persistent `CacheStorage` for zero-latency subsequent runs.
-
----
-
-## Model Provenance & On-Demand Architecture
-
-The application operates without a backend server, streaming open-source neural network assets directly into the browser:
-
-### 1. Neural Network Model Weights (`Kokoro-82M`)
-* **Upstream Model**: [hexgrad/Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) by `@hexgrad`
-* **ONNX Conversion & Quantization**: [onnx-community/Kokoro-82M-v1.0-ONNX](https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX)
-* **Architecture**: StyleTTS2-based lightweight Text-to-Speech model with 82 million parameters.
-* **Quantization**: 8-bit quantized ONNX (`model_quantized.onnx`, ~88 MB) downloaded on-demand and cached via `CacheStorage`.
-* **License**: **Apache 2.0**
-
-### 2. Speaker Voice Style Embeddings (Asian / CJK Syllable-Timed)
-* **Source**: [onnx-community/Kokoro-82M-v1.0-ONNX](https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/tree/main/voices) and `hexgrad/Kokoro-82M`.
-* **On-Demand Loading**: Individual ~130 KB style vectors are fetched on-demand only when a specific voice is synthesized, then cached in memory/browser cache.
-* **Optimized Voices for Korean**:
-  * **Japanese Voices**: `jf_alpha` (Female / JP), `jf_gongitsune` (Female / JP), `jf_nezumi` (Female / JP), `jf_tebukuro` (Female / JP), `jm_kumo` (Male / JP).
-  * **Mandarin Voices**: `zf_xiaobei` (Female / ZH), `zf_xiaoni` (Female / ZH), `zf_xiaoxiao` (Female / ZH), `zf_xiaoyi` (Female / ZH), `zm_yunxi` (Male / ZH), `zm_yunjian` (Male / ZH), `zm_yunxia` (Male / ZH), `zm_yunyang` (Male / ZH).
-* **License**: **Apache 2.0**
-
-### 3. WebAssembly & Neural Engine Runtime (`ort-wasm-simd-threaded.jsep.wasm`)
-* **Source**: [ONNX Runtime Web](https://github.com/microsoft/onnxruntime) (`onnxruntime-web`) via `@huggingface/transformers`.
-* **Execution Capabilities**: Multi-threaded SIMD WebAssembly (ARM NEON / x86 AVX) and WebGPU JSEP (JavaScript Execution Provider) hardware acceleration.
-* **License**: **MIT License**
+This package can be used as an **npm library** in your own web applications/PWAs, or run locally as an **interactive playground**.
 
 ---
 
-## Korean Grapheme & IPA Phonology Engine
+## Library Usage (npm)
 
-Because Kokoro-82M's tokenizer is built for phonetic alphabets, [`src/korean-engine.js`](src/korean-engine.js) translates Korean Hangul text into pure **International Phonetic Alphabet (IPA)** payloads to prevent English vowel gliding (diphthongization) and ensure flat, natural Korean syllable pacing:
-
-- **Syllable Decomposition**: Breaks syllables into 초성 (19 consonants), 중성 (21 vowels), and 종성/받침 (28 codas).
-- **Phonological Assimilation Rules**:
-  - **Liaison (연음법칙)**: e.g. `한국어` $\rightarrow$ `[한구거]`, `음악` $\rightarrow$ `[으막]`.
-  - **Nasalization (비음화)**: e.g. `감사합니다` $\rightarrow$ `[감사함니다]`, `국물` $\rightarrow$ `[궁물]`.
-  - **Lateralization (유음화)**: e.g. `신라` $\rightarrow$ `[실라]`, `연락` $\rightarrow$ `[열락]`.
-  - **Aspiration (격음화)**: e.g. `축하` $\rightarrow$ `[추카]`, `좋다` $\rightarrow$ `[조타]`.
-  - **Palatalization (구개음화)**: e.g. `같이` $\rightarrow$ `[가치]`, `굳이` $\rightarrow$ `[구지]`.
-- **Number & Time Normalizer**: Automatically expands Sino-Korean & Native Korean numbers (e.g. `2026년 8월 15일 오후 3시 30분` $\rightarrow$ `이천이십육년 팔월 십오일 오후 세시 삼십분`, `24,500원` $\rightarrow$ `이만사천오백원`).
-
----
-
-## Quick Start
+### 1. Installation
 
 ```bash
-# 1. Install dependencies (< 10 seconds)
-npm install
-
-# 2. Start the local development server
-npm run dev
-
-# 3. Open in browser
-# Navigate to http://localhost:5173
+npm install korean-kokoro kokoro-js
 ```
 
-To build for production or static hosting:
+### 2. High-Level `KoreanSpeaker` API
+
+`KoreanSpeaker` manages model downloading, caching, voice selection, Hangul-to-IPA phonology conversion, audio synthesis, and offline cache maintenance in one unified interface:
+
+```typescript
+import { KoreanSpeaker } from "korean-kokoro";
+
+// 1. Initialize speaker instance
+const speaker = new KoreanSpeaker({
+  device: "wasm", // "wasm" or "webgpu"
+  dtype: "q8",    // "q8" (~86MB), "fp32", "fp16", or "q4"
+});
+
+// 2. Load model with progress tracking (auto-cached in browser CacheStorage)
+await speaker.load({
+  progressCallback: (p) => {
+    console.log(`Downloading: ${p.file} (${p.progress}%)`);
+  },
+});
+
+// 3. Get supported voices (Japanese / Mandarin CJK voices tuned for syllable timing)
+const voices = speaker.getVoices();
+// [{ id: "zf_xiaobei", name: "Xiaobei", traits: "...", ... }, ...]
+
+// 4. Synthesize speech from Korean text
+const result = await speaker.synthesize("안녕하세요! 반갑습니다.", {
+  voice: "zf_xiaobei",
+  speed: 1.0,
+});
+
+// Access metrics & outputs
+console.log(`Generated in ${result.genTimeMs}ms (${result.rtf.toFixed(2)}x RTF)`);
+console.log(`IPA Payload: ${result.ipa}`);
+
+// 5. Playback or download WAV
+const wavBlob = result.toWavBlob();
+const audioUrl = result.toAudioUrl();
+
+// 6. Direct one-line speak & play
+await speaker.speak("오늘도 좋은 하루 되세요!");
+
+// 7. Inspect or clear offline storage (PWA ready)
+const storage = await speaker.getStorageInfo();
+console.log(`Storage: ${storage.modelSizeFormatted} (Offline Cached: ${storage.isCached})`);
+
+// Delete cached model from disk and release RAM when user opts out
+// await speaker.clearStorage();
+```
+
+---
+
+## Low-Level Phonology & Audio Utilities
+
+You can also import individual building blocks:
+
+```typescript
+import {
+  koreanToIpa,
+  decomposeHangul,
+  createWavBlob,
+  Visualizer,
+} from "korean-kokoro";
+
+// Phonetic Hangul-to-IPA transcription with assimilation rules
+const ipa = koreanToIpa("감사합니다"); // -> "kamsahamnida"
+
+// Convert raw Float32Array PCM samples to WAV Blob
+const wavBlob = createWavBlob(float32Array, 24000);
+```
+
+---
+
+## Running the Interactive Demo Playground
+
 ```bash
-npm run build
-npm run preview
+# 1. Install dependencies
+npm install
+
+# 2. Start dev server
+npm run dev
+# Open http://localhost:5173
+
+# 3. Build library package (ESM + CJS + .d.ts)
+npm run build:lib
+
+# 4. Build demo web app
+npm run build:demo
 ```
 
 ---
 
 ## License
 
-This project is licensed under the **MIT License**. See the [`LICENSE`](LICENSE) file for details.
+This project is licensed under the **MIT License**. See [`LICENSE`](LICENSE) for details.

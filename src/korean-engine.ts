@@ -287,6 +287,13 @@ export function convertKoreanToSpeechText(inputText: string): string {
   return result.trim();
 }
 
+export function isHangul(char: string): boolean {
+  const code = char.charCodeAt(0);
+  return code >= 0xac00 && code <= 0xd7a3;
+}
+
+export const koreanToIpa = convertKoreanToSpeechText;
+
 // Preset sentence categories for quality testing
 export const KOREAN_SENTENCE_PRESETS: SentenceCategory[] = [
   {

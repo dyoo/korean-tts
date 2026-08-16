@@ -31,6 +31,14 @@
         </div>
 
         <div class="header-actions">
+          <div class="model-status-badge" id="storageStatusBadge" title="CacheStorage status for Kokoro weights">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+            <span id="storageText">Checking Cache...</span>
+          </div>
+          <button id="clearCacheBtn" class="btn btn-ghost btn-sm" title="Delete Kokoro model files from CacheStorage" style="display: none;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            <span>Clear Cache</span>
+          </button>
           <div class="model-status-badge" id="modelStatusBadge">
             <span class="status-indicator status-offline" id="statusDot"></span>
             <span id="statusText">Model Not Loaded</span>
@@ -197,134 +205,8 @@
             </div>
           </section>
 
-          <!-- Quality Evaluation & Scoring Scorecard -->
-          <section class="panel panel-eval">
-            <div class="panel-header">
-              <div class="panel-title-group">
-                <span class="step-num">4</span>
-                <h2>Korean Generation Quality Scorecard</h2>
-              </div>
-              <span class="panel-hint">Rate synthesis quality for research logs</span>
-            </div>
-
-            <div class="eval-rubric-grid">
-              <!-- Naturalness -->
-              <div class="eval-row">
-                <div class="eval-meta">
-                  <span class="eval-name">Naturalness & Rhythm (자연스러움 및 운율)</span>
-                  <span class="eval-sub">Does the speech sound human and fluent?</span>
-                </div>
-                <div class="star-rating" data-criteria="naturalness">
-                  <button class="star-btn" data-val="1">★</button>
-                  <button class="star-btn" data-val="2">★</button>
-                  <button class="star-btn" data-val="3">★</button>
-                  <button class="star-btn" data-val="4">★</button>
-                  <button class="star-btn" data-val="5">★</button>
-                  <span class="rating-score">0/5</span>
-                </div>
-              </div>
-
-              <!-- Pronunciation Accuracy -->
-              <div class="eval-row">
-                <div class="eval-meta">
-                  <span class="eval-name">Pronunciation Accuracy (발음 정확도)</span>
-                  <span class="eval-sub">Are Korean consonants, vowels & 받침 clear?</span>
-                </div>
-                <div class="star-rating" data-criteria="pronunciation">
-                  <button class="star-btn" data-val="1">★</button>
-                  <button class="star-btn" data-val="2">★</button>
-                  <button class="star-btn" data-val="3">★</button>
-                  <button class="star-btn" data-val="4">★</button>
-                  <button class="star-btn" data-val="5">★</button>
-                  <span class="rating-score">0/5</span>
-                </div>
-              </div>
-
-              <!-- Intonation & Tone -->
-              <div class="eval-row">
-                <div class="eval-meta">
-                  <span class="eval-name">Intonation & Pitch (억양 및 음높이)</span>
-                  <span class="eval-sub">Does statement/question pitch contour fit Korean?</span>
-                </div>
-                <div class="star-rating" data-criteria="intonation">
-                  <button class="star-btn" data-val="1">★</button>
-                  <button class="star-btn" data-val="2">★</button>
-                  <button class="star-btn" data-val="3">★</button>
-                  <button class="star-btn" data-val="4">★</button>
-                  <button class="star-btn" data-val="5">★</button>
-                  <span class="rating-score">0/5</span>
-                </div>
-              </div>
-
-              <!-- Artifacts / Audio Clarity -->
-              <div class="eval-row">
-                <div class="eval-meta">
-                  <span class="eval-name">Audio Clarity & Artifacts (음질 및 노이즈)</span>
-                  <span class="eval-sub">Free of robotic buzzing, clipping or robotic glitches?</span>
-                </div>
-                <div class="star-rating" data-criteria="clarity">
-                  <button class="star-btn" data-val="1">★</button>
-                  <button class="star-btn" data-val="2">★</button>
-                  <button class="star-btn" data-val="3">★</button>
-                  <button class="star-btn" data-val="4">★</button>
-                  <button class="star-btn" data-val="5">★</button>
-                  <span class="rating-score">0/5</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Notes & Save Evaluation -->
-            <div class="eval-actions-row">
-              <input type="text" id="evalNotes" class="form-input" placeholder="Optional evaluation notes (e.g., 좋은 발음이나 특정 어색한 음절 기록)...">
-              <button id="saveEvalBtn" class="btn btn-secondary btn-sm" disabled>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-                <span>Save Test Log</span>
-              </button>
-            </div>
-          </section>
-
         </div>
       </div>
-
-      <!-- Test History & Comparison Log Table -->
-      <section class="panel panel-history">
-        <div class="panel-header">
-          <div class="panel-title-group">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-            <h2>Test Run History & Quality Log</h2>
-          </div>
-          <div class="history-actions">
-            <button id="exportLogsBtn" class="btn btn-outline btn-sm">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              <span>Export JSON Report</span>
-            </button>
-            <button id="clearHistoryBtn" class="btn btn-ghost btn-sm">Clear History</button>
-          </div>
-        </div>
-
-        <div class="history-table-container">
-          <table class="history-table" id="historyTable">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Korean Text</th>
-                <th>Phonetic Payload</th>
-                <th>Voice</th>
-                <th>Speed</th>
-                <th>Gen Time</th>
-                <th>Quality Score</th>
-                <th>Notes</th>
-                <th>Play / Download</th>
-              </tr>
-            </thead>
-            <tbody id="historyTableBody">
-              <tr class="empty-row">
-                <td colspan="9">No test runs recorded yet. Generate speech above to add records.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
     </main>
 
     <!-- Footer -->

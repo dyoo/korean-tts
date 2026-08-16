@@ -1,56 +1,23 @@
-import { KokoroTTS } from "kokoro-js";
-import { Tensor, RawAudio, env } from "@huggingface/transformers";
+import {
+  KoreanSpeaker,
+  type SpeakerProgress,
+  type StorageInfo,
+} from "./korean-speaker";
 import {
   KOREAN_SENTENCE_PRESETS,
-  KOKORO_VOICES,
-  convertKoreanToSpeechText,
   type SentenceItem,
   type VoiceConfig,
 } from "./korean-engine";
-import { createWavBlob, Visualizer } from "./audio-utils";
+import { Visualizer } from "./audio-utils";
 
-// Configure Transformers.js for lightweight on-demand remote CDN loading with browser cache
-env.allowLocalModels = false;
-env.allowRemoteModels = true;
-
-// Type Definitions
-export interface TestRecord {
-  id: number;
-  korean: string;
-  payload: string;
-  voice: string;
-  speed: number;
-  genTimeMs: number;
-  durationSec: number;
-  sampleRate: number;
-  rtf: number;
-  wavBlob?: Blob;
-  ratings?: {
-    naturalness: number;
-    pronunciation: number;
-    intonation: number;
-    clarity: number;
-  };
-  averageScore?: string;
-  notes?: string;
-  timestamp?: string;
-}
-
-export interface ProgressInfo {
-  status: string;
-  progress?: number;
-  file?: string;
-}
+// KoreanSpeaker Instance
+const speaker = new KoreanSpeaker();
 
 // State
-let ttsInstance: KokoroTTS | null = null;
 let isModelLoading: boolean = false;
 let currentAudioBuffer: Float32Array | null = null;
 let currentWavBlob: Blob | null = null;
 let currentAudioDuration: number = 0;
-let currentRunMetadata: TestRecord | null = null;
-
-const voiceCache = new Map<string, Float32Array>();
 
 let activeAudioSource: AudioBufferSourceNode | null = null;
 let audioContext: AudioContext | null = null;
@@ -64,21 +31,12 @@ let activeCategoryIdx: number = 0;
 let selectedPresetId: string | null = "g1";
 let isManualPhonemeEditing: boolean = false;
 
-// Ratings State
-const currentRatings = {
-  naturalness: 0,
-  pronunciation: 0,
-  intonation: 0,
-  clarity: 0,
-};
-
-// Test History Log
-const testHistory: TestRecord[] = [];
-
 // DOM Elements
 const loadModelBtn = document.getElementById("loadModelBtn") as HTMLButtonElement;
 const statusDot = document.getElementById("statusDot") as HTMLSpanElement;
 const statusText = document.getElementById("statusText") as HTMLSpanElement;
+const storageText = document.getElementById("storageText") as HTMLSpanElement;
+const clearCacheBtn = document.getElementById("clearCacheBtn") as HTMLButtonElement;
 const progressBarContainer = document.getElementById("progressBarContainer") as HTMLDivElement;
 const progressBarFill = document.getElementById("progressBarFill") as HTMLDivElement;
 const progressLabel = document.getElementById("progressLabel") as HTMLSpanElement;
@@ -115,12 +73,6 @@ const currTime = document.getElementById("currTime") as HTMLDivElement;
 const totalTime = document.getElementById("totalTime") as HTMLDivElement;
 const downloadWavBtn = document.getElementById("downloadWavBtn") as HTMLButtonElement;
 
-const evalNotes = document.getElementById("evalNotes") as HTMLInputElement;
-const saveEvalBtn = document.getElementById("saveEvalBtn") as HTMLButtonElement;
-const historyTableBody = document.getElementById("historyTableBody") as HTMLTableSectionElement;
-const exportLogsBtn = document.getElementById("exportLogsBtn") as HTMLButtonElement;
-const clearHistoryBtn = document.getElementById("clearHistoryBtn") as HTMLButtonElement;
-
 const visualizer = new Visualizer(waveformCanvas);
 
 // Initialize UI
@@ -131,21 +83,23 @@ function init(): void {
   selectPreset(KOREAN_SENTENCE_PRESETS[0].items[0]);
   setupEventListeners();
   updatePhoneticPreview();
+  updateStorageBadge();
 }
 
 // Render Voices with optgroups
 function renderVoiceOptions(): void {
+  const voices = speaker.getVoices();
   const groups: Record<string, VoiceConfig[]> = {};
-  for (const v of KOKORO_VOICES) {
+  for (const v of voices) {
     const groupName = v.group || "Other";
     if (!groups[groupName]) groups[groupName] = [];
     groups[groupName].push(v);
   }
 
   let html = "";
-  for (const [groupName, voices] of Object.entries(groups)) {
+  for (const [groupName, vList] of Object.entries(groups)) {
     html += `<optgroup label="--- ${groupName} ---">`;
-    for (const v of voices) {
+    for (const v of vList) {
       html += `<option value="${v.id}">${v.name} [Grade ${v.grade}]</option>`;
     }
     html += `</optgroup>`;
@@ -159,7 +113,8 @@ function renderVoiceOptions(): void {
 }
 
 function updateVoiceDescription(): void {
-  const selected = KOKORO_VOICES.find((v) => v.id === voiceSelect.value);
+  const voices = speaker.getVoices();
+  const selected = voices.find((v) => v.id === voiceSelect.value);
   if (selected) {
     voiceDesc.textContent = `${selected.name}: ${selected.traits}`;
   }
@@ -211,7 +166,7 @@ function updatePhoneticPreview(): void {
     return;
   }
 
-  const converted = convertKoreanToSpeechText(text);
+  const converted = speaker.textToIpa(text);
   phoneticPreviewText.textContent = converted;
   manualPhonemeInput.value = converted;
 }
@@ -285,34 +240,51 @@ function setupEventListeners(): void {
   });
 
   downloadWavBtn.addEventListener("click", downloadCurrentWav);
-
-  document.querySelectorAll(".star-rating").forEach((group) => {
-    const criteria = (group as HTMLElement).dataset.criteria as keyof typeof currentRatings;
-    const scoreDisplay = group.querySelector(".rating-score") as HTMLElement;
-    const stars = group.querySelectorAll(".star-btn");
-
-    stars.forEach((star) => {
-      star.addEventListener("click", () => {
-        const val = parseInt((star as HTMLElement).dataset.val || "0", 10);
-        currentRatings[criteria] = val;
-        scoreDisplay.textContent = `${val}/5`;
-        stars.forEach((s) => {
-          const sVal = parseInt((s as HTMLElement).dataset.val || "0", 10);
-          s.classList.toggle("active", sVal <= val);
-        });
-        checkSaveButtonState();
-      });
-    });
-  });
-
-  saveEvalBtn.addEventListener("click", saveEvaluationRecord);
-  exportLogsBtn.addEventListener("click", exportHistoryJSON);
-  clearHistoryBtn.addEventListener("click", clearHistory);
+  clearCacheBtn.addEventListener("click", handleClearCache);
 }
 
-// Load Model (On-Demand CDN with browser CacheStorage)
+// Storage Status Monitoring
+async function updateStorageBadge(): Promise<StorageInfo> {
+  const info = await speaker.getStorageInfo();
+  if (info.isCached && info.modelSizeBytes > 0) {
+    storageText.textContent = `Storage: ${info.modelSizeFormatted} (Offline Cached)`;
+    clearCacheBtn.style.display = "inline-flex";
+  } else {
+    storageText.textContent = "Storage: None (On-demand)";
+    clearCacheBtn.style.display = "none";
+  }
+  return info;
+}
+
+// Handle Cache Deletion
+async function handleClearCache(): Promise<void> {
+  const confirmed = confirm(
+    "Delete cached Kokoro model files (~86 MB)?\n\nThis will free up browser storage. Subsequent speech generation will re-download the model from CDN."
+  );
+  if (!confirmed) return;
+
+  clearCacheBtn.disabled = true;
+  storageText.textContent = "Deleting cache...";
+
+  await speaker.clearStorage();
+
+  statusDot.className = "status-indicator status-offline";
+  statusText.textContent = "Model Not Loaded";
+  loadModelBtn.disabled = false;
+  loadModelBtn.className = "btn btn-primary btn-sm";
+  loadModelBtn.innerHTML = `
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+    <span>Load Model (82M WASM)</span>
+  `;
+  generateBtn.disabled = true;
+
+  clearCacheBtn.disabled = false;
+  await updateStorageBadge();
+}
+
+// Load Model (Delegates to KoreanSpeaker)
 async function loadModel(): Promise<void> {
-  if (isModelLoading || ttsInstance) return;
+  if (isModelLoading || speaker.isLoaded()) return;
 
   isModelLoading = true;
   loadModelBtn.disabled = true;
@@ -326,13 +298,12 @@ async function loadModel(): Promise<void> {
   const [device, dtype] = selectedDevice.split("_");
 
   try {
-    const modelId = "onnx-community/Kokoro-82M-v1.0-ONNX";
     progressLabel.textContent = `Loading Kokoro-82M (${dtype.toUpperCase()}) for ${device.toUpperCase()}...`;
 
-    ttsInstance = await KokoroTTS.from_pretrained(modelId, {
+    await speaker.load({
       dtype: dtype as any,
       device: (device === "webgpu" ? "webgpu" : "wasm") as any,
-      progress_callback: handleProgress,
+      progressCallback: handleProgress,
     });
 
     statusDot.className = "status-indicator status-ready";
@@ -344,6 +315,9 @@ async function loadModel(): Promise<void> {
     setTimeout(() => {
       progressBarContainer.style.display = "none";
     }, 1000);
+
+    // Refresh storage usage display after successful model download
+    await updateStorageBadge();
   } catch (err: any) {
     console.error("Failed to load Kokoro model:", err);
     statusDot.className = "status-indicator status-offline";
@@ -356,7 +330,7 @@ async function loadModel(): Promise<void> {
   }
 }
 
-function handleProgress(p: ProgressInfo): void {
+function handleProgress(p: SpeakerProgress): void {
   if (p.status === "progress" && p.progress) {
     const pct = Math.round(p.progress);
     progressBarFill.style.width = `${pct}%`;
@@ -370,50 +344,11 @@ function handleProgress(p: ProgressInfo): void {
   }
 }
 
-// Download Voice Style Tensor on Demand from CDN and Cache in Memory / Browser Cache
-async function getVoiceVector(voiceName: string): Promise<Float32Array> {
-  if (voiceCache.has(voiceName)) {
-    return voiceCache.get(voiceName)!;
-  }
-
-  const cdnUrl = `https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/${voiceName}.bin`;
-
-  let buffer: ArrayBuffer | null = null;
-  try {
-    let cache: Cache | null = null;
-    try {
-      cache = await caches.open("kokoro-voices");
-      const matched = await cache.match(cdnUrl);
-      if (matched) {
-        buffer = await matched.arrayBuffer();
-      }
-    } catch (_) {}
-
-    if (!buffer) {
-      const res = await fetch(cdnUrl);
-      if (!res.ok) throw new Error(`Could not fetch voice vector for ${voiceName}`);
-      const clone = res.clone();
-      buffer = await res.arrayBuffer();
-      if (cache) {
-        try {
-          await cache.put(cdnUrl, clone);
-        } catch (_) {}
-      }
-    }
-  } catch (err: any) {
-    throw new Error(`Failed to load voice vector for ${voiceName}: ${err.message}`);
-  }
-
-  const float32Array = new Float32Array(buffer);
-  voiceCache.set(voiceName, float32Array);
-  return float32Array;
-}
-
-// Generate Speech
+// Generate Speech (Delegates to KoreanSpeaker)
 async function generateSpeech(): Promise<void> {
-  if (!ttsInstance) {
+  if (!speaker.isLoaded()) {
     await loadModel();
-    if (!ttsInstance) return;
+    if (!speaker.isLoaded()) return;
   }
 
   const koreanText = koreanInput.value.trim();
@@ -424,10 +359,10 @@ async function generateSpeech(): Promise<void> {
 
   const speechPayload = isManualPhonemeEditing
     ? manualPhonemeInput.value.trim()
-    : (phoneticPreviewText.textContent || "").trim();
+    : koreanText;
 
   if (!speechPayload) {
-    alert("Phonetic payload is empty.");
+    alert("Input text or phonetic payload is empty.");
     return;
   }
 
@@ -441,67 +376,33 @@ async function generateSpeech(): Promise<void> {
 
   stopAudio();
 
-  const startTime = performance.now();
-
   try {
-    console.log(`Synthesizing payload: "${speechPayload}" with voice: ${voiceId}, speed: ${speed}`);
-
-    // Tokenize phonetic payload
-    const { input_ids } = (ttsInstance as any).tokenizer(speechPayload, { truncation: true });
-    const voiceTensor = await getVoiceVector(voiceId);
-    const numTokens = input_ids.dims.at(-1);
-    const sliceIndex = 256 * Math.min(Math.max(numTokens - 2, 0), 509);
-    const styleSlice = voiceTensor.slice(sliceIndex, sliceIndex + 256);
-
-    const modelInputs = {
-      input_ids: input_ids,
-      style: new Tensor("float32", styleSlice, [1, 256]),
-      speed: new Tensor("float32", [speed], [1]),
-    };
-
-    const { waveform } = await (ttsInstance as any).model(modelInputs);
-    const rawAudio = new RawAudio(waveform.data, 24000);
-
-    const elapsedMs = Math.round(performance.now() - startTime);
-    const audioData = rawAudio.audio as Float32Array;
-    const sampleRate = rawAudio.sampling_rate || 24000;
-    const durationSec = audioData.length / sampleRate;
-    const rtf = (elapsedMs / 1000) / durationSec;
-
-    currentAudioBuffer = audioData;
-    currentAudioDuration = durationSec;
-    currentWavBlob = createWavBlob(audioData, sampleRate);
-
-    currentRunMetadata = {
-      id: Date.now(),
-      korean: koreanText,
-      payload: speechPayload,
+    const result = await speaker.synthesize(speechPayload, {
       voice: voiceId,
-      speed: speed,
-      genTimeMs: elapsedMs,
-      durationSec: durationSec,
-      sampleRate: sampleRate,
-      rtf: rtf,
-      wavBlob: currentWavBlob,
-    };
+      speed,
+      isIpa: isManualPhonemeEditing,
+    });
+
+    currentAudioBuffer = result.audio;
+    currentAudioDuration = result.durationSec;
+    currentWavBlob = result.toWavBlob();
 
     // Update Player & Visualizer UI
-    metricGenTime.textContent = `${elapsedMs}ms`;
-    metricDuration.textContent = `${durationSec.toFixed(2)}s`;
-    metricRtf.textContent = `${rtf.toFixed(2)}x RTF`;
+    metricGenTime.textContent = `${result.genTimeMs}ms`;
+    metricDuration.textContent = `${result.durationSec.toFixed(2)}s`;
+    metricRtf.textContent = `${result.rtf.toFixed(2)}x RTF`;
     audioMetrics.style.display = "inline-flex";
 
     visualizerOverlay.style.display = "none";
-    visualizer.drawWaveformStatic(audioData);
+    visualizer.drawWaveformStatic(result.audio);
 
     playBtn.disabled = false;
     seekSlider.disabled = false;
     downloadWavBtn.disabled = false;
-    totalTime.textContent = formatTime(durationSec);
+    totalTime.textContent = formatTime(result.durationSec);
     currTime.textContent = "00:00";
     seekSlider.value = "0";
 
-    checkSaveButtonState();
     playAudio(0);
   } catch (err: any) {
     console.error("Speech synthesis failed:", err);
@@ -626,126 +527,6 @@ function downloadCurrentWav(): void {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-}
-
-function checkSaveButtonState(): void {
-  saveEvalBtn.disabled = !currentRunMetadata;
-}
-
-function saveEvaluationRecord(): void {
-  if (!currentRunMetadata) return;
-
-  const totalScore = (
-    currentRatings.naturalness +
-    currentRatings.pronunciation +
-    currentRatings.intonation +
-    currentRatings.clarity
-  ) / (currentRatings.naturalness ? 4 : 1);
-
-  const record: TestRecord = {
-    ...currentRunMetadata,
-    ratings: { ...currentRatings },
-    averageScore: totalScore > 0 ? totalScore.toFixed(1) : "N/A",
-    notes: evalNotes.value.trim() || "-",
-    timestamp: new Date().toLocaleTimeString(),
-  };
-
-  testHistory.unshift(record);
-  renderHistoryTable();
-
-  evalNotes.value = "";
-  alert("Quality evaluation record saved to test run history!");
-}
-
-function renderHistoryTable(): void {
-  if (testHistory.length === 0) {
-    historyTableBody.innerHTML = `
-      <tr class="empty-row">
-        <td colspan="9">No test runs recorded yet. Generate speech above to add records.</td>
-      </tr>
-    `;
-    return;
-  }
-
-  historyTableBody.innerHTML = testHistory.map((item, idx) => `
-    <tr>
-      <td>${testHistory.length - idx}</td>
-      <td class="history-korean" title="${item.korean}">${item.korean}</td>
-      <td class="history-phonetic" title="${item.payload}">${item.payload}</td>
-      <td><strong>${item.voice}</strong></td>
-      <td>${item.speed}x</td>
-      <td>${item.genTimeMs}ms (${item.durationSec.toFixed(1)}s)</td>
-      <td>
-        <span class="history-score-badge">
-          ★ ${item.averageScore !== "N/A" ? item.averageScore + "/5" : "Unrated"}
-        </span>
-      </td>
-      <td style="max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.notes || "-"}</td>
-      <td>
-        <div style="display: flex; gap: 0.3rem;">
-          <button class="btn btn-primary btn-sm play-history-btn" data-id="${item.id}">Play</button>
-          <button class="btn btn-secondary btn-sm dl-history-btn" data-id="${item.id}">WAV</button>
-        </div>
-      </td>
-    </tr>
-  `).join("");
-
-  document.querySelectorAll(".play-history-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const id = parseInt((btn as HTMLElement).dataset.id || "0", 10);
-      const record = testHistory.find((r) => r.id === id);
-      if (record && record.wavBlob) {
-        const audio = new Audio(URL.createObjectURL(record.wavBlob));
-        audio.play();
-      }
-    });
-  });
-
-  document.querySelectorAll(".dl-history-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const id = parseInt((btn as HTMLElement).dataset.id || "0", 10);
-      const record = testHistory.find((r) => r.id === id);
-      if (record && record.wavBlob) {
-        const url = URL.createObjectURL(record.wavBlob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `kokoro_korean_${record.voice}_${record.id}.wav`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      }
-    });
-  });
-}
-
-function exportHistoryJSON(): void {
-  if (testHistory.length === 0) {
-    alert("No test history to export.");
-    return;
-  }
-
-  const exportData = testHistory.map((item) => {
-    const { wavBlob: _unused, ...rest } = item;
-    return rest;
-  });
-
-  const jsonStr = JSON.stringify(exportData, null, 2);
-  const blob = new Blob([jsonStr], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `kokoro_korean_test_report_${Date.now()}.json`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-function clearHistory(): void {
-  if (confirm("Are you sure you want to clear all test history?")) {
-    testHistory.length = 0;
-    renderHistoryTable();
-  }
 }
 
 document.addEventListener("DOMContentLoaded", init);

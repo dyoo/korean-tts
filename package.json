@@ -1,21 +1,47 @@
 {
-  "name": "korean-kokoro-test",
+  "name": "korean-kokoro",
   "version": "1.0.0",
-  "description": "Kokoro TTS WebAssembly Korean Generation Quality Testing Playground",
+  "description": "Korean phonology to IPA monophthong converter and audio utilities for Kokoro-82M TTS WASM",
   "type": "module",
   "license": "MIT",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "vite --port 5173",
-    "build": "tsc --noEmit && vite build",
+    "build": "npm run build:lib",
+    "build:lib": "tsc --noEmit && vite build --mode lib",
+    "build:demo": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prepublishOnly": "npm run typecheck && npm run build:lib"
   },
   "dependencies": {
     "kokoro-js": "^1.2.1"
   },
+  "peerDependencies": {
+    "kokoro-js": "^1.2.1"
+  },
+  "peerDependenciesMeta": {
+    "kokoro-js": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@types/node": "^26.2.0",
+    "@typescript/typescript6": "^6.0.2",
     "typescript": "^7.0.2",
-    "vite": "^8.2.1"
+    "vite": "^8.2.1",
+    "vite-plugin-dts": "^5.0.3"
   }
 }
