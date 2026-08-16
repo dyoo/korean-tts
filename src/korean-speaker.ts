@@ -163,9 +163,6 @@ export interface TextSynthesisInput extends BaseSynthesisInput {
    * into phonetically assimilated IPA monophthongs.
    */
   text: string;
-
-  /** IPA field must not be present when passing text */
-  ipa?: never;
 }
 
 /**
@@ -177,9 +174,6 @@ export interface IpaSynthesisInput extends BaseSynthesisInput {
    * Bypasses Hangul phonology conversion.
    */
   ipa: string;
-
-  /** Text field must not be present when passing raw IPA */
-  text?: never;
 }
 
 /**
@@ -418,7 +412,7 @@ export class KoreanSpeaker {
 
     const voice = input.voice || "jf_nezumi";
     const speed = input.speed ?? 1.0;
-    const ipa = typeof input.ipa === "string" ? input.ipa : this.textToIpa(input.text);
+    const ipa = "ipa" in input ? input.ipa : this.textToIpa(input.text);
 
     if (!ipa.trim()) {
       throw new Error("Phonetic payload is empty");
