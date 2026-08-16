@@ -14,7 +14,7 @@ This package can be used as an **npm library** in your own web applications/PWAs
 npm install korean-kokoro kokoro-js
 ```
 
-### 2. High-Level `KoreanSpeaker` API
+### 2. High-Level `KoreanSpeaker` Example
 
 `KoreanSpeaker` manages model downloading, caching, voice selection, Hangul-to-IPA phonology conversion, audio synthesis, and offline cache maintenance in one unified interface:
 
@@ -69,6 +69,37 @@ console.log(`Storage: ${storage.modelSizeFormatted} (Offline Cached: ${storage.i
 // Delete cached model from disk and release RAM when user opts out
 // await speaker.clearStorage();
 ```
+
+---
+
+## API Reference (`korean-speaker`)
+
+### `KoreanSpeaker` Methods
+
+| Method | Parameters | Returns | Description |
+| :--- | :--- | :--- | :--- |
+| `constructor(options?)` | `SpeakerInitOptions?` | `KoreanSpeaker` | Creates a new speaker instance with default or custom backend config. |
+| `load(options?)` | `SpeakerInitOptions?` | `Promise<void>` | Downloads and initializes the ONNX model into WASM or WebGPU. |
+| `isLoaded()` | — | `boolean` | Returns `true` if the model is initialized and ready for synthesis. |
+| `getBackend()` | — | `{ device, dtype, modelId }` | Returns active hardware device, precision, and model repo. |
+| `getVoices()` | — | `VoiceConfig[]` | Returns all available voices with language, gender, and trait metadata. |
+| `textToIpa(text)` | `koreanText: string` | `string` | Converts Korean text into normalized, phonetically assimilated IPA. |
+| `getVoiceVector(name)` | `voiceName: string` | `Promise<Float32Array>` | Fetches and caches voice style embedding vector from CDN. |
+| `preloadVoices(names)` | `voiceNames: string[]` | `Promise<void>` | Preloads multiple voice style vectors into memory. |
+| `synthesize(input)` | `SynthesisInput` | `Promise<SynthesisResult>` | Synthesizes `{ text }` or `{ ipa }` into audio with performance metrics. |
+| `speak(input)` | `SynthesisInput` | `Promise<{ result, audio }>` | Synthesizes and immediately begins audio playback via `HTMLAudioElement`. |
+| `getStorageInfo()` | — | `Promise<StorageInfo>` | Inspects browser `CacheStorage` for offline model size and origin quota. |
+| `clearStorage()` | — | `Promise<boolean>` | Deletes model weights from `CacheStorage` and frees WebAssembly RAM. |
+| `dispose()` | — | `void` | Releases in-memory model instances and cached style vectors. |
+
+### Exported Types & Interfaces
+
+* **`SpeakerInitOptions`**: Configuration for model loading (`modelId`, `dtype`, `device`, `progressCallback`, `requestPersistence`).
+* **`SynthesisInput`**: Discriminated union `{ text: string; voice?: string; speed?: number } | { ipa: string; voice?: string; speed?: number }`.
+* **`SynthesisResult`**: Synthesis outputs (`audio: Float32Array`, `sampleRate`, `durationSec`, `genTimeMs`, `rtf`, `ipa`, `voice`, `speed`, `toWavBlob()`, `toAudioUrl()`, `createAudioElement()`).
+* **`SpeakerProgress`**: Download progress payload (`status`, `progress`, `file`, `loaded`, `total`).
+* **`SpeakerProgressCallback`**: `(progress: SpeakerProgress) => void`.
+* **`StorageInfo`**: Offline cache inspection metrics (`isCached`, `modelSizeBytes`, `modelSizeFormatted`, `totalUsageBytes`, `totalUsageFormatted`, `persisted`).
 
 ---
 
