@@ -4,35 +4,65 @@ import {
   KOREAN_SENTENCE_PRESETS,
   KOKORO_VOICES,
   convertKoreanToSpeechText,
-} from "./korean-engine.js";
-import { createWavBlob, Visualizer } from "./audio-utils.js";
+  type SentenceItem,
+  type VoiceConfig,
+} from "./korean-engine";
+import { createWavBlob, Visualizer } from "./audio-utils";
 
 // Configure Transformers.js for lightweight on-demand remote CDN loading with browser cache
 env.allowLocalModels = false;
 env.allowRemoteModels = true;
 
+// Type Definitions
+export interface TestRecord {
+  id: number;
+  korean: string;
+  payload: string;
+  voice: string;
+  speed: number;
+  genTimeMs: number;
+  durationSec: number;
+  sampleRate: number;
+  rtf: number;
+  wavBlob?: Blob;
+  ratings?: {
+    naturalness: number;
+    pronunciation: number;
+    intonation: number;
+    clarity: number;
+  };
+  averageScore?: string;
+  notes?: string;
+  timestamp?: string;
+}
+
+export interface ProgressInfo {
+  status: string;
+  progress?: number;
+  file?: string;
+}
+
 // State
-let ttsInstance = null;
-let isModelLoading = false;
-let currentAudioBuffer = null;
-let currentWavBlob = null;
-let currentAudioDuration = 0;
-let currentRunMetadata = null;
+let ttsInstance: KokoroTTS | null = null;
+let isModelLoading: boolean = false;
+let currentAudioBuffer: Float32Array | null = null;
+let currentWavBlob: Blob | null = null;
+let currentAudioDuration: number = 0;
+let currentRunMetadata: TestRecord | null = null;
 
-const voiceCache = new Map();
+const voiceCache = new Map<string, Float32Array>();
 
-let activeAudioSource = null;
-let audioContext = null;
-let analyserNode = null;
-let isPlaying = false;
-let playStartTime = 0;
-let pauseOffset = 0;
-let playbackTimer = null;
+let activeAudioSource: AudioBufferSourceNode | null = null;
+let audioContext: AudioContext | null = null;
+let analyserNode: AnalyserNode | null = null;
+let isPlaying: boolean = false;
+let playStartTime: number = 0;
+let pauseOffset: number = 0;
+let playbackTimer: number | null = null;
 
-let activeCategoryIdx = 0;
-let selectedPresetId = "g1";
-let phoneticMode = "ipa"; // Default to IPA Phonetic for natural Korean speech
-let isManualPhonemeEditing = false;
+let activeCategoryIdx: number = 0;
+let selectedPresetId: string | null = "g1";
+let isManualPhonemeEditing: boolean = false;
 
 // Ratings State
 const currentRatings = {
@@ -43,59 +73,58 @@ const currentRatings = {
 };
 
 // Test History Log
-const testHistory = [];
+const testHistory: TestRecord[] = [];
 
 // DOM Elements
-const loadModelBtn = document.getElementById("loadModelBtn");
-const modelStatusBadge = document.getElementById("modelStatusBadge");
-const statusDot = document.getElementById("statusDot");
-const statusText = document.getElementById("statusText");
-const progressBarContainer = document.getElementById("progressBarContainer");
-const progressBarFill = document.getElementById("progressBarFill");
-const progressLabel = document.getElementById("progressLabel");
-const progressPercentage = document.getElementById("progressPercentage");
+const loadModelBtn = document.getElementById("loadModelBtn") as HTMLButtonElement;
+const statusDot = document.getElementById("statusDot") as HTMLSpanElement;
+const statusText = document.getElementById("statusText") as HTMLSpanElement;
+const progressBarContainer = document.getElementById("progressBarContainer") as HTMLDivElement;
+const progressBarFill = document.getElementById("progressBarFill") as HTMLDivElement;
+const progressLabel = document.getElementById("progressLabel") as HTMLSpanElement;
+const progressPercentage = document.getElementById("progressPercentage") as HTMLSpanElement;
 
-const categoryTabs = document.getElementById("categoryTabs");
-const presetList = document.getElementById("presetList");
-const koreanInput = document.getElementById("koreanInput");
-const charCount = document.getElementById("charCount");
-const phoneticPreviewText = document.getElementById("phoneticPreviewText");
-const manualPhonemeInput = document.getElementById("manualPhonemeInput");
-const toggleManualPhonemeBtn = document.getElementById("toggleManualPhonemeBtn");
+const categoryTabs = document.getElementById("categoryTabs") as HTMLDivElement;
+const presetList = document.getElementById("presetList") as HTMLDivElement;
+const koreanInput = document.getElementById("koreanInput") as HTMLTextAreaElement;
+const charCount = document.getElementById("charCount") as HTMLDivElement;
+const phoneticPreviewText = document.getElementById("phoneticPreviewText") as HTMLDivElement;
+const manualPhonemeInput = document.getElementById("manualPhonemeInput") as HTMLTextAreaElement;
+const toggleManualPhonemeBtn = document.getElementById("toggleManualPhonemeBtn") as HTMLButtonElement;
 
-const voiceSelect = document.getElementById("voiceSelect");
-const voiceDesc = document.getElementById("voiceDesc");
-const speedRange = document.getElementById("speedRange");
-const speedVal = document.getElementById("speedVal");
-const deviceSelect = document.getElementById("deviceSelect");
-const generateBtn = document.getElementById("generateBtn");
-const genBtnText = document.getElementById("genBtnText");
-const genSpinner = document.getElementById("genSpinner");
-const genIcon = document.getElementById("genIcon");
+const voiceSelect = document.getElementById("voiceSelect") as HTMLSelectElement;
+const voiceDesc = document.getElementById("voiceDesc") as HTMLDivElement;
+const speedRange = document.getElementById("speedRange") as HTMLInputElement;
+const speedVal = document.getElementById("speedVal") as HTMLSpanElement;
+const deviceSelect = document.getElementById("deviceSelect") as HTMLSelectElement;
+const generateBtn = document.getElementById("generateBtn") as HTMLButtonElement;
+const genBtnText = document.getElementById("genBtnText") as HTMLSpanElement;
+const genSpinner = document.getElementById("genSpinner") as HTMLSpanElement;
+const genIcon = document.getElementById("genIcon") as unknown as SVGElement;
 
-const audioMetrics = document.getElementById("audioMetrics");
-const metricGenTime = document.getElementById("metricGenTime");
-const metricDuration = document.getElementById("metricDuration");
-const metricRtf = document.getElementById("metricRtf");
+const audioMetrics = document.getElementById("audioMetrics") as HTMLDivElement;
+const metricGenTime = document.getElementById("metricGenTime") as HTMLSpanElement;
+const metricDuration = document.getElementById("metricDuration") as HTMLSpanElement;
+const metricRtf = document.getElementById("metricRtf") as HTMLSpanElement;
 
-const waveformCanvas = document.getElementById("waveformCanvas");
-const visualizerOverlay = document.getElementById("visualizerEmpty");
-const playBtn = document.getElementById("playBtn");
-const seekSlider = document.getElementById("seekSlider");
-const currTime = document.getElementById("currTime");
-const totalTime = document.getElementById("totalTime");
-const downloadWavBtn = document.getElementById("downloadWavBtn");
+const waveformCanvas = document.getElementById("waveformCanvas") as HTMLCanvasElement;
+const visualizerOverlay = document.getElementById("visualizerEmpty") as HTMLDivElement;
+const playBtn = document.getElementById("playBtn") as HTMLButtonElement;
+const seekSlider = document.getElementById("seekSlider") as HTMLInputElement;
+const currTime = document.getElementById("currTime") as HTMLDivElement;
+const totalTime = document.getElementById("totalTime") as HTMLDivElement;
+const downloadWavBtn = document.getElementById("downloadWavBtn") as HTMLButtonElement;
 
-const evalNotes = document.getElementById("evalNotes");
-const saveEvalBtn = document.getElementById("saveEvalBtn");
-const historyTableBody = document.getElementById("historyTableBody");
-const exportLogsBtn = document.getElementById("exportLogsBtn");
-const clearHistoryBtn = document.getElementById("clearHistoryBtn");
+const evalNotes = document.getElementById("evalNotes") as HTMLInputElement;
+const saveEvalBtn = document.getElementById("saveEvalBtn") as HTMLButtonElement;
+const historyTableBody = document.getElementById("historyTableBody") as HTMLTableSectionElement;
+const exportLogsBtn = document.getElementById("exportLogsBtn") as HTMLButtonElement;
+const clearHistoryBtn = document.getElementById("clearHistoryBtn") as HTMLButtonElement;
 
 const visualizer = new Visualizer(waveformCanvas);
 
 // Initialize UI
-function init() {
+function init(): void {
   renderVoiceOptions();
   renderCategoryTabs();
   renderPresetList();
@@ -105,8 +134,8 @@ function init() {
 }
 
 // Render Voices with optgroups
-function renderVoiceOptions() {
-  const groups = {};
+function renderVoiceOptions(): void {
+  const groups: Record<string, VoiceConfig[]> = {};
   for (const v of KOKORO_VOICES) {
     const groupName = v.group || "Other";
     if (!groups[groupName]) groups[groupName] = [];
@@ -129,14 +158,14 @@ function renderVoiceOptions() {
   voiceSelect.addEventListener("change", updateVoiceDescription);
 }
 
-function updateVoiceDescription() {
+function updateVoiceDescription(): void {
   const selected = KOKORO_VOICES.find((v) => v.id === voiceSelect.value);
   if (selected) {
     voiceDesc.textContent = `${selected.name}: ${selected.traits}`;
   }
 }
 
-function renderCategoryTabs() {
+function renderCategoryTabs(): void {
   categoryTabs.innerHTML = KOREAN_SENTENCE_PRESETS.map((cat, idx) => `
     <button class="category-tab-btn ${idx === activeCategoryIdx ? "active" : ""}" data-idx="${idx}">
       ${cat.category.split(" ")[0]} ${cat.category.split("(")[1]?.replace(")", "") || ""}
@@ -144,7 +173,7 @@ function renderCategoryTabs() {
   `).join("");
 }
 
-function renderPresetList() {
+function renderPresetList(): void {
   const currentCat = KOREAN_SENTENCE_PRESETS[activeCategoryIdx];
   if (!currentCat) return;
 
@@ -159,7 +188,7 @@ function renderPresetList() {
   `).join("");
 }
 
-function selectPreset(preset) {
+function selectPreset(preset: SentenceItem): void {
   selectedPresetId = preset.id;
   koreanInput.value = preset.korean;
   updateCharCount();
@@ -167,12 +196,12 @@ function selectPreset(preset) {
   renderPresetList();
 }
 
-function updateCharCount() {
+function updateCharCount(): void {
   const len = koreanInput.value.length;
   charCount.textContent = `${len} character${len !== 1 ? "s" : ""}`;
 }
 
-function updatePhoneticPreview() {
+function updatePhoneticPreview(): void {
   if (isManualPhonemeEditing) return;
 
   const text = koreanInput.value.trim();
@@ -187,20 +216,20 @@ function updatePhoneticPreview() {
   manualPhonemeInput.value = converted;
 }
 
-function setupEventListeners() {
+function setupEventListeners(): void {
   loadModelBtn.addEventListener("click", loadModel);
 
   categoryTabs.addEventListener("click", (e) => {
-    const btn = e.target.closest(".category-tab-btn");
-    if (!btn) return;
+    const btn = (e.target as HTMLElement).closest(".category-tab-btn") as HTMLElement | null;
+    if (!btn || !btn.dataset.idx) return;
     activeCategoryIdx = parseInt(btn.dataset.idx, 10);
     renderCategoryTabs();
     renderPresetList();
   });
 
   presetList.addEventListener("click", (e) => {
-    const card = e.target.closest(".preset-card");
-    if (!card) return;
+    const card = (e.target as HTMLElement).closest(".preset-card") as HTMLElement | null;
+    if (!card || !card.dataset.id) return;
     const id = card.dataset.id;
     const currentCat = KOREAN_SENTENCE_PRESETS[activeCategoryIdx];
     const item = currentCat.items.find((i) => i.id === id);
@@ -238,14 +267,14 @@ function setupEventListeners() {
 
   seekSlider.addEventListener("input", () => {
     if (currentAudioDuration > 0) {
-      const seekTime = (seekSlider.value / 100) * currentAudioDuration;
+      const seekTime = (parseFloat(seekSlider.value) / 100) * currentAudioDuration;
       currTime.textContent = formatTime(seekTime);
     }
   });
 
   seekSlider.addEventListener("change", () => {
     if (currentAudioDuration > 0) {
-      const seekTime = (seekSlider.value / 100) * currentAudioDuration;
+      const seekTime = (parseFloat(seekSlider.value) / 100) * currentAudioDuration;
       if (isPlaying) {
         stopAudio();
         playAudio(seekTime);
@@ -258,17 +287,17 @@ function setupEventListeners() {
   downloadWavBtn.addEventListener("click", downloadCurrentWav);
 
   document.querySelectorAll(".star-rating").forEach((group) => {
-    const criteria = group.dataset.criteria;
-    const scoreDisplay = group.querySelector(".rating-score");
+    const criteria = (group as HTMLElement).dataset.criteria as keyof typeof currentRatings;
+    const scoreDisplay = group.querySelector(".rating-score") as HTMLElement;
     const stars = group.querySelectorAll(".star-btn");
 
     stars.forEach((star) => {
       star.addEventListener("click", () => {
-        const val = parseInt(star.dataset.val, 10);
+        const val = parseInt((star as HTMLElement).dataset.val || "0", 10);
         currentRatings[criteria] = val;
         scoreDisplay.textContent = `${val}/5`;
         stars.forEach((s) => {
-          const sVal = parseInt(s.dataset.val, 10);
+          const sVal = parseInt((s as HTMLElement).dataset.val || "0", 10);
           s.classList.toggle("active", sVal <= val);
         });
         checkSaveButtonState();
@@ -282,7 +311,7 @@ function setupEventListeners() {
 }
 
 // Load Model (On-Demand CDN with browser CacheStorage)
-async function loadModel() {
+async function loadModel(): Promise<void> {
   if (isModelLoading || ttsInstance) return;
 
   isModelLoading = true;
@@ -301,8 +330,8 @@ async function loadModel() {
     progressLabel.textContent = `Loading Kokoro-82M (${dtype.toUpperCase()}) for ${device.toUpperCase()}...`;
 
     ttsInstance = await KokoroTTS.from_pretrained(modelId, {
-      dtype: dtype,
-      device: device === "webgpu" ? "webgpu" : "wasm",
+      dtype: dtype as any,
+      device: (device === "webgpu" ? "webgpu" : "wasm") as any,
       progress_callback: handleProgress,
     });
 
@@ -315,7 +344,7 @@ async function loadModel() {
     setTimeout(() => {
       progressBarContainer.style.display = "none";
     }, 1000);
-  } catch (err) {
+  } catch (err: any) {
     console.error("Failed to load Kokoro model:", err);
     statusDot.className = "status-indicator status-offline";
     statusText.textContent = "Load Failed";
@@ -327,7 +356,7 @@ async function loadModel() {
   }
 }
 
-function handleProgress(p) {
+function handleProgress(p: ProgressInfo): void {
   if (p.status === "progress" && p.progress) {
     const pct = Math.round(p.progress);
     progressBarFill.style.width = `${pct}%`;
@@ -342,17 +371,16 @@ function handleProgress(p) {
 }
 
 // Download Voice Style Tensor on Demand from CDN and Cache in Memory / Browser Cache
-async function getVoiceVector(voiceName) {
+async function getVoiceVector(voiceName: string): Promise<Float32Array> {
   if (voiceCache.has(voiceName)) {
-    return voiceCache.get(voiceName);
+    return voiceCache.get(voiceName)!;
   }
 
   const cdnUrl = `https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/${voiceName}.bin`;
 
-  let buffer;
+  let buffer: ArrayBuffer | null = null;
   try {
-    // Check browser cache first
-    let cache = null;
+    let cache: Cache | null = null;
     try {
       cache = await caches.open("kokoro-voices");
       const matched = await cache.match(cdnUrl);
@@ -372,7 +400,7 @@ async function getVoiceVector(voiceName) {
         } catch (_) {}
       }
     }
-  } catch (err) {
+  } catch (err: any) {
     throw new Error(`Failed to load voice vector for ${voiceName}: ${err.message}`);
   }
 
@@ -382,7 +410,7 @@ async function getVoiceVector(voiceName) {
 }
 
 // Generate Speech
-async function generateSpeech() {
+async function generateSpeech(): Promise<void> {
   if (!ttsInstance) {
     await loadModel();
     if (!ttsInstance) return;
@@ -396,7 +424,7 @@ async function generateSpeech() {
 
   const speechPayload = isManualPhonemeEditing
     ? manualPhonemeInput.value.trim()
-    : phoneticPreviewText.textContent.trim();
+    : (phoneticPreviewText.textContent || "").trim();
 
   if (!speechPayload) {
     alert("Phonetic payload is empty.");
@@ -419,7 +447,7 @@ async function generateSpeech() {
     console.log(`Synthesizing payload: "${speechPayload}" with voice: ${voiceId}, speed: ${speed}`);
 
     // Tokenize phonetic payload
-    const { input_ids } = ttsInstance.tokenizer(speechPayload, { truncation: true });
+    const { input_ids } = (ttsInstance as any).tokenizer(speechPayload, { truncation: true });
     const voiceTensor = await getVoiceVector(voiceId);
     const numTokens = input_ids.dims.at(-1);
     const sliceIndex = 256 * Math.min(Math.max(numTokens - 2, 0), 509);
@@ -431,11 +459,11 @@ async function generateSpeech() {
       speed: new Tensor("float32", [speed], [1]),
     };
 
-    const { waveform } = await ttsInstance.model(modelInputs);
+    const { waveform } = await (ttsInstance as any).model(modelInputs);
     const rawAudio = new RawAudio(waveform.data, 24000);
 
     const elapsedMs = Math.round(performance.now() - startTime);
-    const audioData = rawAudio.audio;
+    const audioData = rawAudio.audio as Float32Array;
     const sampleRate = rawAudio.sampling_rate || 24000;
     const durationSec = audioData.length / sampleRate;
     const rtf = (elapsedMs / 1000) / durationSec;
@@ -448,7 +476,6 @@ async function generateSpeech() {
       id: Date.now(),
       korean: koreanText,
       payload: speechPayload,
-      mode: phoneticMode,
       voice: voiceId,
       speed: speed,
       genTimeMs: elapsedMs,
@@ -472,11 +499,11 @@ async function generateSpeech() {
     downloadWavBtn.disabled = false;
     totalTime.textContent = formatTime(durationSec);
     currTime.textContent = "00:00";
-    seekSlider.value = 0;
+    seekSlider.value = "0";
 
     checkSaveButtonState();
     playAudio(0);
-  } catch (err) {
+  } catch (err: any) {
     console.error("Speech synthesis failed:", err);
     alert(`Speech generation error: ${err.message}`);
   } finally {
@@ -488,9 +515,10 @@ async function generateSpeech() {
 }
 
 // Audio Playback
-function getAudioContext() {
+function getAudioContext(): AudioContext {
   if (!audioContext) {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    audioContext = new AudioCtx({ sampleRate: 24000 });
     analyserNode = audioContext.createAnalyser();
     analyserNode.fftSize = 256;
   }
@@ -500,7 +528,7 @@ function getAudioContext() {
   return audioContext;
 }
 
-function playAudio(startOffset = 0) {
+function playAudio(startOffset: number = 0): void {
   if (!currentAudioBuffer) return;
 
   const ctx = getAudioContext();
@@ -512,10 +540,11 @@ function playAudio(startOffset = 0) {
   activeAudioSource = ctx.createBufferSource();
   activeAudioSource.buffer = buffer;
 
-  activeAudioSource.connect(analyserNode);
-  analyserNode.connect(ctx.destination);
-
-  visualizer.startLive(analyserNode);
+  if (analyserNode) {
+    activeAudioSource.connect(analyserNode);
+    analyserNode.connect(ctx.destination);
+    visualizer.startLive(analyserNode);
+  }
 
   playStartTime = ctx.currentTime - startOffset;
   pauseOffset = startOffset;
@@ -534,7 +563,7 @@ function playAudio(startOffset = 0) {
   startProgressLoop();
 }
 
-function stopAudio() {
+function stopAudio(): void {
   if (activeAudioSource) {
     try {
       activeAudioSource.stop();
@@ -544,14 +573,14 @@ function stopAudio() {
   }
   isPlaying = false;
   visualizer.stopLive();
-  if (playbackTimer) {
+  if (playbackTimer !== null) {
     cancelAnimationFrame(playbackTimer);
     playbackTimer = null;
   }
   playBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
 }
 
-function togglePlay() {
+function togglePlay(): void {
   if (!currentAudioBuffer) return;
 
   if (isPlaying) {
@@ -565,13 +594,13 @@ function togglePlay() {
   }
 }
 
-function startProgressLoop() {
+function startProgressLoop(): void {
   const update = () => {
     if (!isPlaying) return;
     const ctx = getAudioContext();
     const current = Math.min(ctx.currentTime - playStartTime, currentAudioDuration);
     currTime.textContent = formatTime(current);
-    seekSlider.value = (current / currentAudioDuration) * 100;
+    seekSlider.value = String((current / currentAudioDuration) * 100);
 
     if (current < currentAudioDuration) {
       playbackTimer = requestAnimationFrame(update);
@@ -580,13 +609,13 @@ function startProgressLoop() {
   playbackTimer = requestAnimationFrame(update);
 }
 
-function formatTime(sec) {
+function formatTime(sec: number): string {
   const m = Math.floor(sec / 60);
   const s = Math.floor(sec % 60);
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-function downloadCurrentWav() {
+function downloadCurrentWav(): void {
   if (!currentWavBlob) return;
   const url = URL.createObjectURL(currentWavBlob);
   const a = document.createElement("a");
@@ -599,11 +628,11 @@ function downloadCurrentWav() {
   URL.revokeObjectURL(url);
 }
 
-function checkSaveButtonState() {
+function checkSaveButtonState(): void {
   saveEvalBtn.disabled = !currentRunMetadata;
 }
 
-function saveEvaluationRecord() {
+function saveEvaluationRecord(): void {
   if (!currentRunMetadata) return;
 
   const totalScore = (
@@ -613,7 +642,7 @@ function saveEvaluationRecord() {
     currentRatings.clarity
   ) / (currentRatings.naturalness ? 4 : 1);
 
-  const record = {
+  const record: TestRecord = {
     ...currentRunMetadata,
     ratings: { ...currentRatings },
     averageScore: totalScore > 0 ? totalScore.toFixed(1) : "N/A",
@@ -628,7 +657,7 @@ function saveEvaluationRecord() {
   alert("Quality evaluation record saved to test run history!");
 }
 
-function renderHistoryTable() {
+function renderHistoryTable(): void {
   if (testHistory.length === 0) {
     historyTableBody.innerHTML = `
       <tr class="empty-row">
@@ -651,7 +680,7 @@ function renderHistoryTable() {
           ★ ${item.averageScore !== "N/A" ? item.averageScore + "/5" : "Unrated"}
         </span>
       </td>
-      <td style="max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.notes}</td>
+      <td style="max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.notes || "-"}</td>
       <td>
         <div style="display: flex; gap: 0.3rem;">
           <button class="btn btn-primary btn-sm play-history-btn" data-id="${item.id}">Play</button>
@@ -663,7 +692,7 @@ function renderHistoryTable() {
 
   document.querySelectorAll(".play-history-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const id = parseInt(btn.dataset.id, 10);
+      const id = parseInt((btn as HTMLElement).dataset.id || "0", 10);
       const record = testHistory.find((r) => r.id === id);
       if (record && record.wavBlob) {
         const audio = new Audio(URL.createObjectURL(record.wavBlob));
@@ -674,7 +703,7 @@ function renderHistoryTable() {
 
   document.querySelectorAll(".dl-history-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const id = parseInt(btn.dataset.id, 10);
+      const id = parseInt((btn as HTMLElement).dataset.id || "0", 10);
       const record = testHistory.find((r) => r.id === id);
       if (record && record.wavBlob) {
         const url = URL.createObjectURL(record.wavBlob);
@@ -689,14 +718,14 @@ function renderHistoryTable() {
   });
 }
 
-function exportHistoryJSON() {
+function exportHistoryJSON(): void {
   if (testHistory.length === 0) {
     alert("No test history to export.");
     return;
   }
 
   const exportData = testHistory.map((item) => {
-    const { wavBlob, ...rest } = item;
+    const { wavBlob: _unused, ...rest } = item;
     return rest;
   });
 
@@ -712,7 +741,7 @@ function exportHistoryJSON() {
   URL.revokeObjectURL(url);
 }
 
-function clearHistory() {
+function clearHistory(): void {
   if (confirm("Are you sure you want to clear all test history?")) {
     testHistory.length = 0;
     renderHistoryTable();

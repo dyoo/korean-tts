@@ -1,6 +1,6 @@
 // Audio utilities: WAV header creation, Web Audio playback, and Canvas Visualization
 
-export function createWavBlob(float32Array, sampleRate = 24000) {
+export function createWavBlob(float32Array: Float32Array, sampleRate: number = 24000): Blob {
   const numChannels = 1;
   const bitsPerSample = 16;
   const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
@@ -40,28 +40,32 @@ export function createWavBlob(float32Array, sampleRate = 24000) {
   return new Blob([view], { type: "audio/wav" });
 }
 
-function writeString(view, offset, string) {
+function writeString(view: DataView, offset: number, string: string): void {
   for (let i = 0; i < string.length; i++) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
 
 export class Visualizer {
-  constructor(canvas) {
+  private canvas: HTMLCanvasElement;
+  private ctx: CanvasRenderingContext2D | null;
+  private animationId: number | null = null;
+  private analyser: AnalyserNode | null = null;
+
+  constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
-    this.animationId = null;
-    this.analyser = null;
   }
 
-  setAnalyser(analyser) {
+  setAnalyser(analyser: AnalyserNode): void {
     this.analyser = analyser;
   }
 
-  drawWaveformStatic(float32Data) {
-    if (!this.canvas) return;
-    const width = this.canvas.width = this.canvas.parentElement.clientWidth * window.devicePixelRatio || 600;
-    const height = this.canvas.height = 100 * window.devicePixelRatio;
+  drawWaveformStatic(float32Data: Float32Array | null): void {
+    if (!this.canvas || !this.ctx) return;
+    const parentWidth = this.canvas.parentElement?.clientWidth || 600;
+    const width = (this.canvas.width = parentWidth * window.devicePixelRatio);
+    const height = (this.canvas.height = 100 * window.devicePixelRatio);
     const ctx = this.ctx;
     ctx.clearRect(0, 0, width, height);
 
@@ -93,8 +97,10 @@ export class Visualizer {
       let max = -1.0;
       for (let j = 0; j < step; j++) {
         const datum = float32Data[i * step + j];
-        if (datum < min) min = datum;
-        if (datum > max) max = datum;
+        if (datum !== undefined) {
+          if (datum < min) min = datum;
+          if (datum > max) max = datum;
+        }
       }
       const yMin = (1 + min) * amp;
       const yMax = (1 + max) * amp;
@@ -102,7 +108,7 @@ export class Visualizer {
     }
   }
 
-  startLive(analyser) {
+  startLive(analyser: AnalyserNode): void {
     this.analyser = analyser;
     this.stopLive();
 
@@ -111,8 +117,11 @@ export class Visualizer {
 
     const render = () => {
       this.animationId = requestAnimationFrame(render);
-      const width = this.canvas.width = this.canvas.parentElement.clientWidth * window.devicePixelRatio || 600;
-      const height = this.canvas.height = 100 * window.devicePixelRatio;
+      if (!this.canvas || !this.ctx || !this.analyser) return;
+
+      const parentWidth = this.canvas.parentElement?.clientWidth || 600;
+      const width = (this.canvas.width = parentWidth * window.devicePixelRatio);
+      const height = (this.canvas.height = 100 * window.devicePixelRatio);
       const ctx = this.ctx;
 
       this.analyser.getByteFrequencyData(dataArray);
@@ -121,7 +130,7 @@ export class Visualizer {
       ctx.fillRect(0, 0, width, height);
 
       const barWidth = (width / bufferLength) * 2.5;
-      let barHeight;
+      let barHeight: number;
       let x = 0;
 
       for (let i = 0; i < bufferLength; i++) {
@@ -143,8 +152,8 @@ export class Visualizer {
     render();
   }
 
-  stopLive() {
-    if (this.animationId) {
+  stopLive(): void {
+    if (this.animationId !== null) {
       cancelAnimationFrame(this.animationId);
       this.animationId = null;
     }

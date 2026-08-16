@@ -1,24 +1,65 @@
 // Korean Hangul Grapheme & IPA Phonology Engine for Kokoro TTS WebAssembly
 
-const CHO_LIST = ["ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
-const JUNG_LIST = ["ㅏ", "ㅐ", "ㅑ", "ㅒ", "ㅓ", "ㅔ", "ㅕ", "ㅖ", "ㅗ", "ㅘ", "ㅙ", "ㅚ", "ㅛ", "ㅜ", "ㅝ", "ㅞ", "ㅟ", "ㅠ", "ㅡ", "ㅢ", "ㅣ"];
-const JONG_LIST = ["", "ㄱ", "ㄲ", "ㄳ", "ㄴ", "ㄵ", "ㄶ", "ㄷ", "ㄹ", "ㄺ", "ㄻ", "ㄼ", "ㄽ", "ㄾ", "ㄿ", "ㅀ", "ㅁ", "ㅂ", "ㅄ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
+export interface DecomposedHangul {
+  char: string;
+  cho: string;
+  jung: string;
+  jong: string;
+  choIdx: number;
+  jungIdx: number;
+  jongIdx: number;
+  code: number;
+  isRaw?: false;
+}
+
+export interface RawCharacter {
+  char: string;
+  isRaw: true;
+}
+
+export type SyllableToken = DecomposedHangul | RawCharacter;
+
+export interface SentenceItem {
+  id: string;
+  korean: string;
+  translation: string;
+  focus: string;
+}
+
+export interface SentenceCategory {
+  category: string;
+  description: string;
+  items: SentenceItem[];
+}
+
+export interface VoiceConfig {
+  id: string;
+  group: string;
+  name: string;
+  grade: string;
+  traits: string;
+  gender: "Female" | "Male";
+  lang: string;
+}
+
+const CHO_LIST: readonly string[] = ["ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
+const JUNG_LIST: readonly string[] = ["ㅏ", "ㅐ", "ㅑ", "ㅒ", "ㅓ", "ㅔ", "ㅕ", "ㅖ", "ㅗ", "ㅘ", "ㅙ", "ㅚ", "ㅛ", "ㅜ", "ㅝ", "ㅞ", "ㅟ", "ㅠ", "ㅡ", "ㅢ", "ㅣ"];
+const JONG_LIST: readonly string[] = ["", "ㄱ", "ㄲ", "ㄳ", "ㄴ", "ㄵ", "ㄶ", "ㄷ", "ㄹ", "ㄺ", "ㄻ", "ㄼ", "ㄽ", "ㄾ", "ㄿ", "ㅀ", "ㅁ", "ㅂ", "ㅄ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
 
 // Pure IPA Phonetic mappings (avoids English diphthongization & preserves Korean monophthongs)
-const CHO_IPA = ["k", "k͈", "n", "t", "t͈", "ɾ", "m", "p", "p͈", "s", "s͈", "", "t͡ɕ", "t͡ɕ͈", "t͡ɕʰ", "kʰ", "tʰ", "pʰ", "h"];
-const JUNG_IPA = ["a", "ɛ", "ja", "jɛ", "ʌ", "e", "jʌ", "je", "o", "wa", "wɛ", "we", "jo", "u", "wʌ", "we", "ɥi", "ju", "ɯ", "ɰi", "i"];
-const JONG_IPA = ["", "k̚", "k̚", "k̚", "n", "n", "n", "t̚", "l", "k̚", "m", "l", "l", "l", "p̚", "l", "m", "p̚", "p̚", "t̚", "t̚", "ŋ", "t̚", "t̚", "k̚", "t̚", "p̚", "t̚"];
+const CHO_IPA: readonly string[] = ["k", "k͈", "n", "t", "t͈", "ɾ", "m", "p", "p͈", "s", "s͈", "", "t͡ɕ", "t͡ɕ͈", "t͡ɕʰ", "kʰ", "tʰ", "pʰ", "h"];
+const JUNG_IPA: readonly string[] = ["a", "ɛ", "ja", "jɛ", "ʌ", "e", "jʌ", "je", "o", "wa", "wɛ", "we", "jo", "u", "wʌ", "we", "ɥi", "ju", "ɯ", "ɰi", "i"];
+const JONG_IPA: readonly string[] = ["", "k̚", "k̚", "k̚", "n", "n", "n", "t̚", "l", "k̚", "m", "l", "l", "l", "p̚", "l", "m", "p̚", "p̚", "t̚", "t̚", "ŋ", "t̚", "t̚", "k̚", "t̚", "p̚", "t̚"];
 
 // Sino-Korean Number mapping
-const SINO_DIGITS = ["영", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"];
-const SINO_UNITS = ["", "십", "백", "천"];
-const SINO_BIG_UNITS = ["", "만", "억", "조"];
+const SINO_DIGITS: readonly string[] = ["영", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"];
+const SINO_UNITS: readonly string[] = ["", "십", "백", "천"];
+const SINO_BIG_UNITS: readonly string[] = ["", "만", "억", "조"];
 
 // Pure Korean Numbers for counting hours / units
-const PURE_NUMS = ["영", "하나", "둘", "셋", "넷", "다섯", "여섯", "일곱", "여덟", "아홉", "열"];
-const PURE_HOUR = ["영", "한", "두", "세", "네", "다섯", "여섯", "일곱", "여덟", "아홉", "열", "열한", "열두"];
+const PURE_HOUR: readonly string[] = ["영", "한", "두", "세", "네", "다섯", "여섯", "일곱", "여덟", "아홉", "열", "열한", "열두"];
 
-export function numberToKorean(numStr, isHour = false) {
+export function numberToKorean(numStr: string, isHour: boolean = false): string {
   const num = parseInt(numStr, 10);
   if (isNaN(num)) return numStr;
   if (isHour && num >= 1 && num <= 12) {
@@ -30,7 +71,7 @@ export function numberToKorean(numStr, isHour = false) {
   const str = String(num);
   const len = str.length;
 
-  const chunks = [];
+  const chunks: string[] = [];
   for (let i = len; i > 0; i -= 4) {
     chunks.unshift(str.substring(Math.max(0, i - 4), i));
   }
@@ -62,8 +103,8 @@ export function numberToKorean(numStr, isHour = false) {
   return result.trim();
 }
 
-export function normalizeKoreanText(text) {
-  let normalized = text.replace(/(\d{1,2})시\s*(\d{1,2})?분?/g, (m, hour, min) => {
+export function normalizeKoreanText(text: string): string {
+  let normalized = text.replace(/(\d{1,2})시\s*(\d{1,2})?분?/g, (_m, hour, min) => {
     let res = numberToKorean(hour, true) + "시";
     if (min) {
       res += " " + numberToKorean(min, false) + "분";
@@ -71,7 +112,7 @@ export function normalizeKoreanText(text) {
     return res;
   });
 
-  normalized = normalized.replace(/(\d[\d,]*)(원|년|월|일|개|명|번|살|층)/g, (m, num, unit) => {
+  normalized = normalized.replace(/(\d[\d,]*)(원|년|월|일|개|명|번|살|층)/g, (_m, num, unit) => {
     const cleanNum = num.replace(/,/g, "");
     return numberToKorean(cleanNum, false) + unit;
   });
@@ -81,7 +122,7 @@ export function normalizeKoreanText(text) {
   return normalized;
 }
 
-export function decomposeHangul(char) {
+export function decomposeHangul(char: string): DecomposedHangul | null {
   const code = char.charCodeAt(0);
   if (code < 0xAC00 || code > 0xD7A3) return null;
   const offset = code - 0xAC00;
@@ -96,12 +137,13 @@ export function decomposeHangul(char) {
     choIdx,
     jungIdx,
     jongIdx,
-    code
+    code,
+    isRaw: false
   };
 }
 
-export function applyPhonologicalRules(syllables) {
-  const processed = syllables.map((s) => ({ ...s }));
+export function applyPhonologicalRules(syllables: SyllableToken[]): SyllableToken[] {
+  const processed: SyllableToken[] = syllables.map((s) => ({ ...s }));
 
   for (let i = 0; i < processed.length; i++) {
     const cur = processed[i];
@@ -143,7 +185,7 @@ export function applyPhonologicalRules(syllables) {
 
     // 3. Liaison (연음법칙): 받침 + 모음(ㅇ)
     if (cur.jongIdx > 0 && next.choIdx === 11) {
-      const compoundMap = {
+      const compoundMap: Record<string, { keep: number; move: number }> = {
         "ㄳ": { keep: 1, move: 9 },
         "ㄵ": { keep: 4, move: 12 },
         "ㄶ": { keep: 4, move: 11 },
@@ -202,7 +244,7 @@ export function applyPhonologicalRules(syllables) {
   return processed;
 }
 
-export function convertKoreanToSpeechText(inputText) {
+export function convertKoreanToSpeechText(inputText: string): string {
   const normalized = normalizeKoreanText(inputText);
   let result = "";
   const parts = normalized.split(/(\s+|[.,!?~;:"]+)/);
@@ -214,7 +256,7 @@ export function convertKoreanToSpeechText(inputText) {
       continue;
     }
 
-    const rawSyllables = [];
+    const rawSyllables: SyllableToken[] = [];
     for (let i = 0; i < part.length; i++) {
       const char = part[i];
       const decomposed = decomposeHangul(char);
@@ -246,7 +288,7 @@ export function convertKoreanToSpeechText(inputText) {
 }
 
 // Preset sentence categories for quality testing
-export const KOREAN_SENTENCE_PRESETS = [
+export const KOREAN_SENTENCE_PRESETS: SentenceCategory[] = [
   {
     category: "Daily Greetings & Basics (일상 인사 및 기본)",
     description: "Everyday conversational greetings and polite introductions.",
@@ -364,7 +406,7 @@ export const KOREAN_SENTENCE_PRESETS = [
 ];
 
 // Asian / CJK Syllable-timed Voices (Optimized for Asian phonetics)
-export const KOKORO_VOICES = [
+export const KOKORO_VOICES: VoiceConfig[] = [
   // Japanese Voices
   { id: "jf_alpha", group: "Japanese Voices", name: "Alpha (Female / JP)", grade: "A", traits: "🌸 East Asian syllable timing & flat vowel formants", gender: "Female", lang: "ja" },
   { id: "jf_gongitsune", group: "Japanese Voices", name: "Gongitsune (Female / JP)", grade: "A-", traits: "🦊 Crisp, expressive Japanese female", gender: "Female", lang: "ja" },
