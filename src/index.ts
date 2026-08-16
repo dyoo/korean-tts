@@ -7,7 +7,10 @@
 export { KoreanSpeaker } from "./korean-speaker";
 export type {
   SpeakerInitOptions,
-  SynthesisOptions,
+  SynthesisInput,
+  TextSynthesisInput,
+  IpaSynthesisInput,
+  BaseSynthesisInput,
   SynthesisResult,
   SpeakerProgress,
   SpeakerProgressCallback,

@@ -37,11 +37,22 @@ export interface SpeakerInitOptions {
   requestPersistence?: boolean;
 }
 
-export interface SynthesisOptions {
+export interface BaseSynthesisInput {
   voice?: string;
   speed?: number;
-  isIpa?: boolean; // Set true if the input text is already raw IPA phonemes
 }
+
+export interface TextSynthesisInput extends BaseSynthesisInput {
+  text: string;
+  ipa?: never;
+}
+
+export interface IpaSynthesisInput extends BaseSynthesisInput {
+  ipa: string;
+  text?: never;
+}
+
+export type SynthesisInput = TextSynthesisInput | IpaSynthesisInput;
 
 export interface SynthesisResult {
   audio: Float32Array;
@@ -183,19 +194,17 @@ export class KoreanSpeaker {
   }
 
   /**
-   * Synthesize Korean text or IPA phonemes into audio with performance metrics.
+   * Synthesize Korean text ({ text: '...' }) or IPA phonemes ({ ipa: '...' })
+   * into audio with performance metrics.
    */
-  async synthesize(
-    textOrIpa: string,
-    options: SynthesisOptions = {}
-  ): Promise<SynthesisResult> {
+  async synthesize(input: SynthesisInput): Promise<SynthesisResult> {
     if (!this.ttsInstance) {
       await this.load();
     }
 
-    const voice = options.voice || "zf_xiaobei";
-    const speed = options.speed ?? 1.0;
-    const ipa = options.isIpa ? textOrIpa : this.textToIpa(textOrIpa);
+    const voice = input.voice || "zf_xiaobei";
+    const speed = input.speed ?? 1.0;
+    const ipa = typeof input.ipa === "string" ? input.ipa : this.textToIpa(input.text);
 
     if (!ipa.trim()) {
       throw new Error("Phonetic payload is empty");
@@ -253,10 +262,9 @@ export class KoreanSpeaker {
    * Convenience helper to synthesize speech and immediately play it.
    */
   async speak(
-    textOrIpa: string,
-    options: SynthesisOptions = {}
+    input: SynthesisInput
   ): Promise<{ result: SynthesisResult; audio: HTMLAudioElement }> {
-    const result = await this.synthesize(textOrIpa, options);
+    const result = await this.synthesize(input);
     const audio = result.createAudioElement();
     await audio.play();
     return { result, audio };

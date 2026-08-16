@@ -377,11 +377,11 @@ async function generateSpeech(): Promise<void> {
   stopAudio();
 
   try {
-    const result = await speaker.synthesize(speechPayload, {
-      voice: voiceId,
-      speed,
-      isIpa: isManualPhonemeEditing,
-    });
+    const input = isManualPhonemeEditing
+      ? { ipa: speechPayload, voice: voiceId, speed }
+      : { text: speechPayload, voice: voiceId, speed };
+
+    const result = await speaker.synthesize(input);
 
     currentAudioBuffer = result.audio;
     currentAudioDuration = result.durationSec;

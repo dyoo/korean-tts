@@ -38,11 +38,18 @@ await speaker.load({
 const voices = speaker.getVoices();
 // [{ id: "zf_xiaobei", name: "Xiaobei", traits: "...", ... }, ...]
 
-// 4. Synthesize speech from Korean text
-const result = await speaker.synthesize("안녕하세요! 반갑습니다.", {
+// 4. Synthesize speech from Korean text (or raw IPA)
+const result = await speaker.synthesize({
+  text: "안녕하세요! 반갑습니다.",
   voice: "zf_xiaobei",
   speed: 1.0,
 });
+
+// Or synthesize from pre-computed raw IPA directly:
+// const result = await speaker.synthesize({
+//   ipa: "annjʌŋhasejo! paŋkapsɯmnida.",
+//   voice: "zf_xiaobei",
+// });
 
 // Access metrics & outputs
 console.log(`Generated in ${result.genTimeMs}ms (${result.rtf.toFixed(2)}x RTF)`);
@@ -53,7 +60,7 @@ const wavBlob = result.toWavBlob();
 const audioUrl = result.toAudioUrl();
 
 // 6. Direct one-line speak & play
-await speaker.speak("오늘도 좋은 하루 되세요!");
+await speaker.speak({ text: "오늘도 좋은 하루 되세요!" });
 
 // 7. Inspect or clear offline storage (PWA ready)
 const storage = await speaker.getStorageInfo();
