@@ -106,7 +106,7 @@ function renderVoiceOptions(): void {
   }
 
   voiceSelect.innerHTML = html;
-  voiceSelect.value = "jf_alpha"; // Default to Asian CJK voice
+  voiceSelect.value = "jf_nezumi"; // Default to Nezumi
   updateVoiceDescription();
 
   voiceSelect.addEventListener("change", updateVoiceDescription);

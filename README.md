@@ -36,19 +36,19 @@ await speaker.load({
 
 // 3. Get supported voices (Japanese / Mandarin CJK voices tuned for syllable timing)
 const voices = speaker.getVoices();
-// [{ id: "zf_xiaobei", name: "Xiaobei", traits: "...", ... }, ...]
+// [{ id: "jf_nezumi", name: "Nezumi", traits: "...", ... }, ...]
 
 // 4. Synthesize speech from Korean text (or raw IPA)
 const result = await speaker.synthesize({
   text: "안녕하세요! 반갑습니다.",
-  voice: "zf_xiaobei",
+  voice: "jf_nezumi", // Default: jf_nezumi
   speed: 1.0,
 });
 
 // Or synthesize from pre-computed raw IPA directly:
 // const result = await speaker.synthesize({
 //   ipa: "annjʌŋhasejo! paŋkapsɯmnida.",
-//   voice: "zf_xiaobei",
+//   voice: "jf_nezumi",
 // });
 
 // Access metrics & outputs

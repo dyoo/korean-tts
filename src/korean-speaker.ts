@@ -142,7 +142,7 @@ export interface BaseSynthesisInput {
    * Supported voices include CJK syllable-timed voices:
    * - Japanese: `"jf_alpha"`, `"jf_gongitsune"`, `"jf_nezumi"`, `"jf_tebukuro"`, `"jm_kumo"`
    * - Mandarin: `"zf_xiaobei"`, `"zf_xiaoni"`, `"zf_xiaoxiao"`, `"zf_xiaoyi"`, `"zm_yunxi"`, `"zm_yunjian"`, `"zm_yunxia"`, `"zm_yunyang"`
-   * @default "zf_xiaobei"
+   * @default "jf_nezumi"
    */
   voice?: string;
 
@@ -405,7 +405,7 @@ export class KoreanSpeaker {
    * ```typescript
    * const result = await speaker.synthesize({
    *   text: "안녕하세요! 반갑습니다.",
-   *   voice: "zf_xiaobei",
+   *   voice: "jf_nezumi",
    *   speed: 1.0,
    * });
    * const wavBlob = result.toWavBlob();
@@ -416,7 +416,7 @@ export class KoreanSpeaker {
       await this.load();
     }
 
-    const voice = input.voice || "zf_xiaobei";
+    const voice = input.voice || "jf_nezumi";
     const speed = input.speed ?? 1.0;
     const ipa = typeof input.ipa === "string" ? input.ipa : this.textToIpa(input.text);
 
