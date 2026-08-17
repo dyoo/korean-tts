@@ -1,6 +1,11 @@
 # Korean Kokoro TTS — Phonology Engine & WASM Playground
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-blue?style=flat-square&logo=github)](https://dyoo.github.io/korean-tts/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
+
 A lightweight, zero-backend WebAssembly (WASM) and WebGPU speech synthesis engine and testing playground for running **Kokoro-82M TTS** on Korean sentences.
+
+🎮 **Live Interactive Demo:** [https://dyoo.github.io/korean-tts/](https://dyoo.github.io/korean-tts/)
 
 This package can be used as an **npm library** in your own web applications/PWAs, or run locally as an **interactive playground**.
 
