@@ -97,10 +97,17 @@ describe("Hangul to IPA Conversion (음소 변환 및 Kokoro IPA)", () => {
 
     it("should correctly transcribe issue #1 words (휴지, 내일, 타조, 초코, 된장)", () => {
       assert.equal(koreanToIpa("휴지"), "hjuʥi");
-      assert.equal(koreanToIpa("내일"), "nɛil");
+      assert.equal(koreanToIpa("내일"), "nɛ.il");
       assert.equal(koreanToIpa("타조"), "tʰaʥo");
       assert.equal(koreanToIpa("초코"), "ʨʰokʰo");
       assert.equal(koreanToIpa("된장"), "twenʥaŋ");
+    });
+
+    it("should apply vowel hiatus separation across zero-onset syllables", () => {
+      assert.equal(koreanToIpa("오이"), "o.i");
+      assert.equal(koreanToIpa("아이"), "a.i");
+      assert.equal(koreanToIpa("여우"), "jʌ.u");
+      assert.equal(koreanToIpa("새우"), "sɛ.u");
     });
   });
 
