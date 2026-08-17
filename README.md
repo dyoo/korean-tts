@@ -141,20 +141,121 @@ const wavBlob = createWavBlob(float32Array, 24000);
 
 ---
 
-## Unit Testing & Phonology Rules Suite
+## Korean G2P & IPA Algorithm Architecture
 
-The repository includes a comprehensive unit test suite covering Standard Korean Phonology rules (표준 발음법):
-- **Palatalization (구개음화)**: `굳이` → `[구지]`, `같이` → `[가치]`, `닫히다` → `[다치다]`
-- **Aspiration (격음화)**: `축하` → `[추카]`, `좋다` → `[조타]`, `맞히다` → `[마치다]`, `밝히다` → `[발키다]`
-- **Liaison & ㅎ-Elision (연음 & ㅎ 탈락)**: `한국어` → `[한구거]`, `좋아` → `[조아]`, `값이` → `[갑씨]`
-- **Nasalization (비음화)**: `국물` → `[궁물]`, `감사합니다` → `[감사함니다]`, `있는` → `[인는]`
-- **Liquid Nasalization (ㄹ의 비음화)**: `국립` → `[궁닙]`, `독립` → `[동닙]`, `대통령` → `[대통녕]`, `협력` → `[혐녁]`
-- **Lateralization (유음화)**: `신라` → `[실라]`, `난로` → `[날로]`, `설날` → `[설랄]`, `물난리` → `[물랄리]`
-- **Tensification / Glottalization (경음화)**: `국밥` → `[국빱]`, `학교` → `[학꾜]`, `있다` → `[읻따]`, `맑게` → `[말께]`
-- **Coda Neutralization (자음군 단순화 & 음절 끝소리)**: `닭` → `[닥]`, `값` → `[갑]`, `삶` → `[삼]`, `여덟` → `[여덜]`
-- **Native Korean Counting Units & Normalization**: `1개` → `한 개`, `2명` → `두 명`, `20살` → `스무 살`, `24,500원` → `이만 사천오백원`
+The speech synthesis pipeline converts raw Korean text into phonetically transcribed, Kokoro-compatible IPA monophthongs through a 4-stage pipeline:
 
-Run the test suite:
+```
+┌─────────────────────────┐
+│     Raw Korean Text     │  "국밥 2개 주세요! 50% 할인되나요?"
+└────────────┬────────────┘
+             │ 1. Normalization & Tokenization
+┌────────────▼────────────┐
+│   Normalized Hangul     │  "국밥 두 개 주세요! 오십 퍼센트 할인되나요?"
+└────────────┬────────────┘
+             │ 2. Unicode Jamo Decomposition (초성 / 중성 / 종성)
+┌────────────▼────────────┐
+│   Decomposed Syllables  │  [{ᄀ, ᅮ, ᆨ}, {ᄇ, ᅡ, ᆸ}, ...]
+└────────────┬────────────┘
+             │ 3. Multi-Pass Phonology Engine (표준 발음법)
+┌────────────▼────────────┐
+│ Phonetic Hangul Pron.   │  "국빱 두 개 주세요! 오십 퍼센트 할인되나요?"
+└────────────┬────────────┘
+             │ 4. Allophonic Kokoro IPA Transcription
+┌────────────▼────────────┐
+│       Output IPA        │  "kuk̚p͈ap̚ tu ɡe t͡ɕusejo! oɕip̚ pʰʌsɛntʰɯ haɾindwenajo?"
+└─────────────────────────┘
+```
+
+---
+
+### Stage 1: Text & Number Normalization (`normalizeKoreanText`)
+
+Raw inputs often contain digits, currency, dates, percentages, and acronyms that must be converted to spoken Korean words before phonetic transcription:
+
+1. **Native Korean Counting Units (순우리말 수사)**:
+   - Matches numbers `1–99` before counting classifiers (`개`, `명`, `살`, `마리`, `잔`, `권`, `장`, `번`, etc.) and transforms them into pure Korean attributive forms:
+     - `1개` → `한 개`, `2명` → `두 명`, `3살` → `세 살`, `4마리` → `네 마리`, `20살` → `스무 살`, `21명` → `스물한 명`.
+2. **Clock Times & Hours**:
+   - Hours use Native Korean, while minutes and seconds use Sino-Korean: `3시 30분` → `세시 삼십분`, `12시 5분` → `열두시 오분`.
+3. **Decimals, Percentages & Phone Numbers**:
+   - Decimals: `3.14` → `삼 점 일사`, `0.5` → `영 점 오`
+   - Percentages: `99.9%` → `구십구 점 구 퍼센트`
+   - Phone numbers: `010-1234-5678` → `공일공 일이삼사 오육칠팔`
+   - Ordinals: `1번째` → `첫 번째`, `2번째` → `두 번째`, `3번째` → `세 번째`
+4. **Sino-Korean Currency & Dates**:
+   - `24,500원` → `이만 사천오백원`, `2026년 8월 15일` → `이천이십육년 팔월 십오일`.
+5. **English Acronyms & Letters**:
+   - `AI 모델` → `에이아이 모델`, `TTS` → `티티에스`, `OK` → `오케이`.
+
+---
+
+### Stage 2: Syllabic Jamo Decomposition (`decomposeHangul`)
+
+Hangul syllables in the Unicode range `0xAC00`–`0xD7A3` are decomposed arithmetically into their 19 Initial Consonants (초성), 21 Vowels (중성), and 28 Final Codas (종성):
+
+$$\text{offset} = \text{charCode} - \text{0xAC00}$$
+$$\text{choIdx} = \lfloor \text{offset} / 588 \rfloor, \quad \text{jungIdx} = \lfloor (\text{offset} / 28) \bmod 21 \rfloor, \quad \text{jongIdx} = \text{offset} \bmod 28$$
+
+---
+
+### Stage 3: Multi-Pass Phonological Transformation (`applyPhonologicalRules`)
+
+Applies the official Standard Korean Phonology rules (국립국어원 표준 발음법) across syllable boundaries:
+
+1. **Palatalization (구개음화 — 제17항)**:
+   - `ㄷ, ㅌ, ㄾ` before `ㅣ` or `j`-glides become `ㅈ, ㅊ`:
+   - `굳이` → `[구지]`, `같이` → `[가치]`, `핥이다` → `[할치다]`, `닫히다` → `[다치다]`.
+2. **Aspiration & ㅎ-Elision (격음화 및 ㅎ 탈락 — 제12항)**:
+   - Obstruent + `ㅎ` or `ㅎ` + obstruent fuse into aspirated consonants (`ㅋ, ㅌ, ㅍ, ㅊ`): `축하` → `[추카]`, `좋다` → `[조타]`, `맞히다` → `[마치다]`.
+   - `ㅎ` between vowels/sonorants drops: `좋아` → `[조아]`, `많이` → `[마니]`, `싫어` → `[시러]`.
+3. **Liaison (연음법칙 — 제13항, 제14항)**:
+   - Single and compound codas move to empty onset (`ㅇ`) of the following syllable: `한국어` → `[한구거]`, `값이` → `[갑씨]`, `닭을` → `[달글]`, `삶이` → `[살미]`.
+4. **Liquid Lateralization & Nasalization (유음화 및 ㄹ의 비음화 — 제19항, 제20항)**:
+   - `ㄴ + ㄹ` and `ㄹ + ㄴ` become lateral geminate `ㄹㄹ`: `신라` → `[실라]`, `난로` → `[날로]`, `설날` → `[설랄]`.
+   - `ㅁ, ㅇ` + `ㄹ` → `ㅁ, ㅇ + ㄴ`: `종로` → `[종노]`, `대통령` → `[대통녕]`, `침략` → `[침냑]`.
+   - `ㄱ, ㅂ` + `ㄹ` → `ㅇ, ㅁ + ㄴ` (Mutual assimilation): `국립` → `[궁닙]`, `독립` → `[동닙]`, `협력` → `[혐녁]`.
+5. **Nasalization (비음화 — 제18항)**:
+   - Stops (`ㄱ, ㄷ, ㅂ`) before nasals (`ㄴ, ㅁ`) become nasals (`ㅇ, ㄴ, ㅁ`): `국물` → `[궁물]`, `감사합니다` → `[감사함니다]`, `있는` → `[인는]`.
+6. **Tensification / Glottalization (경음화 / 된소리되기 — 제23항~제26항)**:
+   - **Post-Obstruent (제23항)**: `국밥` → `[국빱]`, `학교` → `[학꾜]`, `있다` → `[읻따]`, `잡지` → `[잡찌]`.
+   - **Special `ㄺ + ㄱ` (제25항)**: `맑게` → `[말께]`, `읽고` → `[일꼬]`.
+   - **Predicate Stems ending in `ㄴ, ㅁ` (제24항)**: `신다` → `[신따]`, `앉다` → `[안따]`, `젊다` → `[점따]`, `삼다` → `[삼따]`.
+   - **Sino-Korean `ㄹ` Coda (제26항)**: Hanja roots ending in `ㄹ` tensify subsequent `ㄷ, ㅅ, ㅈ`: `갈등` → `[갈뜽]`, `발전` → `[발쩐]`, `물질` → `[물찔]`, `실수` → `[실쑤]`, `활동` → `[활똥]`, `열정` → `[열쩡]`.
+7. **Coda Neutralization (자음군 단순화 & 음절 끝소리 규칙 — 제8항~제11항)**:
+   - Final codas in isolation or before consonants reduce to the 7 stop archetypes (`ㄱ, ㄴ, ㄷ, ㄹ, ㅁ, ㅂ, ㅇ`): `닭` → `[닥]`, `값` → `[갑]`, `삶` → `[삼]`, `여덟` → `[여덜]`, `꽃` → `[꼳]`.
+
+---
+
+### Stage 4: Allophonic Kokoro-Targeted IPA Transcription (`convertKoreanToSpeechText`)
+
+Converts the assimilated syllable tokens into accurate International Phonetic Alphabet (IPA) representations optimized for Kokoro-82M CJK acoustic models:
+
+1. **Alveolo-palatalization (`[ɕ, ɕ͈]`)**:
+   - `ㅅ, ㅆ` preceding `/i/` or `/j/` glides are transcribed as alveolo-palatal `[ɕ, ɕ͈]`:
+     - `시간` → `ɕiɡan` (instead of `sikan`)
+     - `신라` → `ɕilla`
+     - `시작` → `ɕid͡ʑak̚`
+     - `씨앗` → `ɕ͈iat̚`
+2. **Intervocalic & Post-Sonorant Voicing (`[ɡ, d, b, d͡ʑ]`)**:
+   - Plain stops (`ㄱ, ㄷ, ㅂ, ㅈ`) become voiced between sonorants (vowels and `ㄴ, ㄹ, ㅁ, ㅇ`):
+     - `아버지` → `abʌd͡ʑi`
+     - `친구` → `t͡ɕʰinɡu`
+     - `한국어` → `hanɡuɡʌ`
+     - `감사합니다` → `kamsahamnida`
+3. **Lateral Gemination (`[ll]`)**:
+   - Consecutive `ㄹ` sounds are represented as true alveolar lateral geminates (`[ll]`):
+     - `설날` → `sʌllal`
+     - `빨리` → `p͈alli`
+4. **Unreleased Stop Codas (`[k̚, t̚, p̚]`)**:
+   - Syllable-final stops are marked as unreleased: `국밥` → `kuk̚p͈ap̚`.
+
+---
+
+## Unit Testing & Verification
+
+The engine is covered by **225 automated unit tests** across 22 suites:
+
 ```bash
 npm run test
 # or directly with Node:
