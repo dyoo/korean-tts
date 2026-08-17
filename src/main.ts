@@ -5,6 +5,7 @@ import {
 } from "./korean-speaker";
 import {
   KOREAN_SENTENCE_PRESETS,
+  koreanToPronunciation,
   type SentenceItem,
   type VoiceConfig,
 } from "./korean-engine";
@@ -46,6 +47,7 @@ const categoryTabs = document.getElementById("categoryTabs") as HTMLDivElement;
 const presetList = document.getElementById("presetList") as HTMLDivElement;
 const koreanInput = document.getElementById("koreanInput") as HTMLTextAreaElement;
 const charCount = document.getElementById("charCount") as HTMLDivElement;
+const phoneticPronunciationText = document.getElementById("phoneticPronunciationText") as HTMLSpanElement;
 const phoneticPreviewText = document.getElementById("phoneticPreviewText") as HTMLDivElement;
 const manualPhonemeInput = document.getElementById("manualPhonemeInput") as HTMLTextAreaElement;
 const toggleManualPhonemeBtn = document.getElementById("toggleManualPhonemeBtn") as HTMLButtonElement;
@@ -161,12 +163,15 @@ function updatePhoneticPreview(): void {
 
   const text = koreanInput.value.trim();
   if (!text) {
+    phoneticPronunciationText.textContent = "-";
     phoneticPreviewText.textContent = "(입력된 한국어 텍스트가 없습니다)";
     manualPhonemeInput.value = "";
     return;
   }
 
+  const pronunciation = koreanToPronunciation(text);
   const converted = speaker.textToIpa(text);
+  phoneticPronunciationText.textContent = `[${pronunciation}]`;
   phoneticPreviewText.textContent = converted;
   manualPhonemeInput.value = converted;
 }

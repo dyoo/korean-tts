@@ -42,28 +42,68 @@ export interface VoiceConfig {
   lang: string;
 }
 
-const CHO_LIST: readonly string[] = ["ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
-const JUNG_LIST: readonly string[] = ["ㅏ", "ㅐ", "ㅑ", "ㅒ", "ㅓ", "ㅔ", "ㅕ", "ㅖ", "ㅗ", "ㅘ", "ㅙ", "ㅚ", "ㅛ", "ㅜ", "ㅝ", "ㅞ", "ㅟ", "ㅠ", "ㅡ", "ㅢ", "ㅣ"];
-const JONG_LIST: readonly string[] = ["", "ㄱ", "ㄲ", "ㄳ", "ㄴ", "ㄵ", "ㄶ", "ㄷ", "ㄹ", "ㄺ", "ㄻ", "ㄼ", "ㄽ", "ㄾ", "ㄿ", "ㅀ", "ㅁ", "ㅂ", "ㅄ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
+export const CHO_LIST: readonly string[] = ["ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
+export const JUNG_LIST: readonly string[] = ["ㅏ", "ㅐ", "ㅑ", "ㅒ", "ㅓ", "ㅔ", "ㅕ", "ㅖ", "ㅗ", "ㅘ", "ㅙ", "ㅚ", "ㅛ", "ㅜ", "ㅝ", "ㅞ", "ㅟ", "ㅠ", "ㅡ", "ㅢ", "ㅣ"];
+export const JONG_LIST: readonly string[] = ["", "ㄱ", "ㄲ", "ㄳ", "ㄴ", "ㄵ", "ㄶ", "ㄷ", "ㄹ", "ㄺ", "ㄻ", "ㄼ", "ㄽ", "ㄾ", "ㄿ", "ㅀ", "ㅁ", "ㅂ", "ㅄ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
 
 // Pure IPA Phonetic mappings (avoids English diphthongization & preserves Korean monophthongs)
-const CHO_IPA: readonly string[] = ["k", "k͈", "n", "t", "t͈", "ɾ", "m", "p", "p͈", "s", "s͈", "", "t͡ɕ", "t͡ɕ͈", "t͡ɕʰ", "kʰ", "tʰ", "pʰ", "h"];
-const JUNG_IPA: readonly string[] = ["a", "ɛ", "ja", "jɛ", "ʌ", "e", "jʌ", "je", "o", "wa", "wɛ", "we", "jo", "u", "wʌ", "we", "ɥi", "ju", "ɯ", "ɰi", "i"];
-const JONG_IPA: readonly string[] = ["", "k̚", "k̚", "k̚", "n", "n", "n", "t̚", "l", "k̚", "m", "l", "l", "l", "p̚", "l", "m", "p̚", "p̚", "t̚", "t̚", "ŋ", "t̚", "t̚", "k̚", "t̚", "p̚", "t̚"];
+export const CHO_IPA: readonly string[] = ["k", "k͈", "n", "t", "t͈", "ɾ", "m", "p", "p͈", "s", "s͈", "", "t͡ɕ", "t͡ɕ͈", "t͡ɕʰ", "kʰ", "tʰ", "pʰ", "h"];
+export const JUNG_IPA: readonly string[] = ["a", "ɛ", "ja", "jɛ", "ʌ", "e", "jʌ", "je", "o", "wa", "wɛ", "we", "jo", "u", "wʌ", "we", "ɥi", "ju", "ɯ", "ɰi", "i"];
+export const JONG_IPA: readonly string[] = ["", "k̚", "k̚", "k̚", "n", "n", "n", "t̚", "l", "k̚", "m", "l", "l", "l", "p̚", "l", "m", "p̚", "p̚", "t̚", "t̚", "ŋ", "t̚", "t̚", "k̚", "t̚", "p̚", "t̚"];
 
 // Sino-Korean Number mapping
 const SINO_DIGITS: readonly string[] = ["영", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"];
 const SINO_UNITS: readonly string[] = ["", "십", "백", "천"];
 const SINO_BIG_UNITS: readonly string[] = ["", "만", "억", "조"];
 
-// Pure Korean Numbers for counting hours / units
-const PURE_HOUR: readonly string[] = ["영", "한", "두", "세", "네", "다섯", "여섯", "일곱", "여덟", "아홉", "열", "열한", "열두"];
+// Pure Korean Numbers for counting hours / units (1-99)
+const NATIVE_TENS: readonly string[] = ["", "열", "스물", "서른", "마흔", "쉰", "예순", "일흔", "여든", "아흔"];
+const NATIVE_ONES: readonly string[] = ["", "하나", "둘", "셋", "넷", "다섯", "여섯", "일곱", "여덟", "아홉"];
+const NATIVE_ATTR_ONES: readonly string[] = ["", "한", "두", "세", "네", "다섯", "여섯", "일곱", "여덟", "아홉"];
 
+// English alphabet transliteration map for mixed Korean-English text / acronyms
+const ENG_LETTER_MAP: Record<string, string> = {
+  a: "에이", b: "비", c: "씨", d: "디", e: "이", f: "에프", g: "지",
+  h: "에이치", i: "아이", j: "제이", k: "케이", l: "엘", m: "엠", n: "엔",
+  o: "오", p: "피", q: "큐", r: "알", s: "에스", t: "티", u: "유",
+  v: "브이", w: "더블유", x: "엑스", y: "와이", z: "제트"
+};
+
+/**
+ * Converts a number to Native Korean (순우리말 수사).
+ * @param num Number from 1 to 99
+ * @param isAttributive If true, uses attributive form before nouns (한, 두, 세, 네, 스무)
+ */
+export function numberToNativeKorean(num: number, isAttributive: boolean = true): string {
+  if (num === 0) return "영";
+  if (num < 1 || num > 99) return numberToKorean(String(num));
+
+  if (num === 20 && isAttributive) return "스무";
+
+  const tens = Math.floor(num / 10);
+  const ones = num % 10;
+
+  if (tens === 0) {
+    return isAttributive ? NATIVE_ATTR_ONES[ones] : NATIVE_ONES[ones];
+  }
+
+  const tensStr = NATIVE_TENS[tens];
+  if (ones === 0) {
+    return tensStr;
+  }
+
+  const onesStr = isAttributive ? NATIVE_ATTR_ONES[ones] : NATIVE_ONES[ones];
+  return tensStr + onesStr;
+}
+
+/**
+ * Converts a Sino-Korean number string to Hangul.
+ */
 export function numberToKorean(numStr: string, isHour: boolean = false): string {
   const num = parseInt(numStr, 10);
   if (isNaN(num)) return numStr;
   if (isHour && num >= 1 && num <= 12) {
-    return PURE_HOUR[num];
+    return numberToNativeKorean(num, true);
   }
   if (num === 0) return "영";
 
@@ -103,7 +143,11 @@ export function numberToKorean(numStr: string, isHour: boolean = false): string 
   return result.trim();
 }
 
+/**
+ * Normalizes Korean text: numbers, dates, times, units, currency, and English acronyms.
+ */
 export function normalizeKoreanText(text: string): string {
+  // 1. Hours & Minutes (e.g. 3시 30분, 12시 5분)
   let normalized = text.replace(/(\d{1,2})시\s*(\d{1,2})?분?/g, (_m, hour, min) => {
     let res = numberToKorean(hour, true) + "시";
     if (min) {
@@ -112,16 +156,39 @@ export function normalizeKoreanText(text: string): string {
     return res;
   });
 
-  normalized = normalized.replace(/(\d[\d,]*)(원|년|월|일|개|명|번|살|층)/g, (_m, num, unit) => {
+  // 2. Native Korean Counting Units (1-99 before counting nouns)
+  // e.g. 1개 -> 한 개, 2명 -> 두 명, 3살 -> 세 살, 4마리 -> 네 마리, 20살 -> 스무 살
+  const nativeUnitPattern = /(\d{1,2})\s*(개|명|살|마리|잔|채|대|권|장|그루|송이|자루|켤레|통|벌|군데|가지|번|병|그릇|박스|팩|세트)/g;
+  normalized = normalized.replace(nativeUnitPattern, (_m, numStr, unit) => {
+    const n = parseInt(numStr, 10);
+    if (n >= 1 && n <= 99) {
+      return numberToNativeKorean(n, true) + " " + unit;
+    }
+    return numberToKorean(numStr, false) + " " + unit;
+  });
+
+  // 3. Sino-Korean units & currency (e.g. 24,500원, 2026년, 8월, 15일, 3층, 10호)
+  normalized = normalized.replace(/(\d[\d,]*)\s*(원|년|월|일|층|호|점|등|도|미터|킬로미터|센티미터|밀리미터|그램|킬로그램|리터|밀리리터)/g, (_m, num, unit) => {
     const cleanNum = num.replace(/,/g, "");
     return numberToKorean(cleanNum, false) + unit;
   });
 
+  // 4. Standalone numbers
   normalized = normalized.replace(/\b\d+\b/g, (m) => numberToKorean(m, false));
+
+  // 5. English letters / acronyms transliteration (e.g. "AI" -> "에이아이", "TTS" -> "티티에스")
+  normalized = normalized.replace(/\b[A-Za-z]+\b/g, (match) => {
+    return Array.from(match.toLowerCase())
+      .map((c) => ENG_LETTER_MAP[c] || c)
+      .join("");
+  });
 
   return normalized;
 }
 
+/**
+ * Decomposes a Hangul character into its constituent Cho, Jung, and Jong components.
+ */
 export function decomposeHangul(char: string): DecomposedHangul | null {
   const code = char.charCodeAt(0);
   if (code < 0xAC00 || code > 0xD7A3) return null;
@@ -142,6 +209,35 @@ export function decomposeHangul(char: string): DecomposedHangul | null {
   };
 }
 
+/**
+ * Composes Cho, Jung, and Jong index values into a Unicode Hangul character.
+ */
+export function composeHangul(choIdx: number, jungIdx: number, jongIdx: number = 0): string {
+  if (choIdx < 0 || choIdx >= 19 || jungIdx < 0 || jungIdx >= 21 || jongIdx < 0 || jongIdx >= 28) {
+    return "";
+  }
+  return String.fromCharCode(0xAC00 + (choIdx * 21 + jungIdx) * 28 + jongIdx);
+}
+
+/**
+ * Reconstructs a Hangul string from a list of SyllableTokens.
+ */
+export function syllablesToHangul(syllables: SyllableToken[]): string {
+  return syllables
+    .map((s) => (s.isRaw ? s.char : composeHangul(s.choIdx, s.jungIdx, s.jongIdx)))
+    .join("");
+}
+
+/**
+ * Applies Standard Korean Phonological Rules (표준 발음법) across syllable boundaries:
+ * 1. Palatalization (구개음화: ㄷ/ㅌ/ㄾ + 이/반모음 [j] -> ㅈ/ㅊ, ㄷ + 히 -> ㅊ)
+ * 2. Aspiration (격음화: 평음 + ㅎ -> 격음, ㅎ/ㄶ/ㅀ + 평음 -> 격음/경음)
+ * 3. Liaison & ㅎ-Elision (연음법칙 & ㅎ 탈락)
+ * 4. Lateralization & Liquid Nasalization (유음화 & ㄹ의 비음화)
+ * 5. Nasalization before ㄴ/ㅁ (비음화)
+ * 6. Tensification / Glottalization (경음화 / 된소리되기)
+ * 7. Coda Simplification & Neutralization (자음군 단순화 & 음절의 끝소리 규칙)
+ */
 export function applyPhonologicalRules(syllables: SyllableToken[]): SyllableToken[] {
   const processed: SyllableToken[] = syllables.map((s) => ({ ...s }));
 
@@ -149,54 +245,174 @@ export function applyPhonologicalRules(syllables: SyllableToken[]): SyllableToke
     const cur = processed[i];
     const next = processed[i + 1];
 
-    if (!cur || cur.isRaw || !next || next.isRaw) continue;
+    if (!cur || cur.isRaw) continue;
 
-    // 1. Palatalization (구개음화): ㄷ/ㅌ + 이/여/유 -> ㅈ/ㅊ
-    if ((cur.jong === "ㄷ" || cur.jong === "ㅌ") && next.choIdx === 11 && (next.jung === "ㅣ" || next.jung.startsWith("ㅑ") || next.jung.startsWith("ㅕ"))) {
-      if (cur.jong === "ㄷ") {
-        next.choIdx = 12;
-      } else if (cur.jong === "ㅌ") {
-        next.choIdx = 14;
+    // 1. Palatalization (구개음화): ㄷ/ㅌ/ㄾ + 이/반모음 [j] -> ㅈ/ㅊ, ㄷ + 히 -> ㅊ
+    if (next && !next.isRaw) {
+      const isIorY = next.jung === "ㅣ" || ["ㅑ", "ㅒ", "ㅕ", "ㅖ", "ㅛ", "ㅠ"].includes(next.jung);
+      if (next.choIdx === 11 && isIorY) {
+        if (cur.jong === "ㄷ") {
+          next.choIdx = 12; // ㅈ
+          next.cho = "ㅈ";
+          cur.jongIdx = 0;
+          cur.jong = "";
+          continue;
+        } else if (cur.jong === "ㅌ") {
+          next.choIdx = 14; // ㅊ
+          next.cho = "ㅊ";
+          cur.jongIdx = 0;
+          cur.jong = "";
+          continue;
+        } else if (cur.jong === "ㄾ") {
+          next.choIdx = 14; // ㅊ
+          next.cho = "ㅊ";
+          cur.jongIdx = 8;
+          cur.jong = "ㄹ";
+          continue;
+        }
+      } else if (cur.jong === "ㄷ" && next.choIdx === 18 && next.jung === "ㅣ") { // 닫히다 -> [다치다], 묻히다 -> [무치다]
+        next.choIdx = 14; // ㅊ
+        next.cho = "ㅊ";
+        cur.jongIdx = 0;
+        cur.jong = "";
+        continue;
       }
-      cur.jongIdx = 0;
-      cur.jong = "";
-      continue;
     }
 
-    // 2. Aspiration (격음화): ㄱ/ㄷ/ㅂ/ㅈ + ㅎ -> ㅋ/ㅌ/ㅍ/ㅊ
-    if (next.choIdx === 18) {
-      if (cur.jong === "ㄱ" || cur.jong === "ㄺ") {
-        next.choIdx = 15;
+    // 2. Aspiration: Coda + ㅎ (평음 + ㅎ -> 격음)
+    if (next && !next.isRaw && next.choIdx === 18) {
+      if (["ㄱ", "ㄲ", "ㅋ", "ㄳ"].includes(cur.jong)) {
+        next.choIdx = 15; // ㅋ
+        next.cho = "ㅋ";
         cur.jongIdx = 0;
         cur.jong = "";
-      } else if (["ㄷ", "ㅅ", "ㅈ", "ㅊ", "ㅌ"].includes(cur.jong)) {
-        next.choIdx = 16;
+        continue;
+      } else if (cur.jong === "ㄺ") {
+        next.choIdx = 15; // ㅋ
+        next.cho = "ㅋ";
+        cur.jongIdx = 8;
+        cur.jong = "ㄹ";
+        continue;
+      } else if (["ㄷ", "ㅅ", "ㅆ", "ㅌ"].includes(cur.jong)) {
+        next.choIdx = 16; // ㅌ
+        next.cho = "ㅌ";
         cur.jongIdx = 0;
         cur.jong = "";
-      } else if (["ㅂ", "ㄿ", "ㅄ"].includes(cur.jong)) {
-        next.choIdx = 17;
+        continue;
+      } else if (["ㅈ", "ㅊ"].includes(cur.jong)) {
+        next.choIdx = 14; // ㅊ
+        next.cho = "ㅊ";
         cur.jongIdx = 0;
         cur.jong = "";
-      } else if (cur.jong === "ㄶ" || cur.jong === "ㅀ") {
-        cur.jongIdx = cur.jong === "ㄶ" ? 4 : 8;
+        continue;
+      } else if (cur.jong === "ㄵ") {
+        next.choIdx = 14; // ㅊ
+        next.cho = "ㅊ";
+        cur.jongIdx = 4;
+        cur.jong = "ㄴ";
+        continue;
+      } else if (["ㅂ", "ㅍ", "ㅄ"].includes(cur.jong)) {
+        next.choIdx = 17; // ㅍ
+        next.cho = "ㅍ";
+        cur.jongIdx = 0;
+        cur.jong = "";
+        continue;
+      } else if (cur.jong === "ㄿ" || cur.jong === "ㄼ") {
+        next.choIdx = 17; // ㅍ
+        next.cho = "ㅍ";
+        cur.jongIdx = 8;
+        cur.jong = "ㄹ";
+        continue;
       }
-      continue;
     }
 
-    // 3. Liaison (연음법칙): 받침 + 모음(ㅇ)
-    if (cur.jongIdx > 0 && next.choIdx === 11) {
+    // 3. Aspiration / Interaction with ㅎ/ㄶ/ㅀ coda + onset
+    if (["ㅎ", "ㄶ", "ㅀ"].includes(cur.jong)) {
+      if (next && !next.isRaw) {
+        const oldJong = cur.jong;
+        const reduceH = () => {
+          if (oldJong === "ㅎ") {
+            cur.jong = "";
+            cur.jongIdx = 0;
+          } else if (oldJong === "ㄶ") {
+            cur.jong = "ㄴ";
+            cur.jongIdx = 4;
+          } else if (oldJong === "ㅀ") {
+            cur.jong = "ㄹ";
+            cur.jongIdx = 8;
+          }
+        };
+
+        if (next.choIdx === 0) { // ㄱ -> ㅋ
+          next.choIdx = 15;
+          next.cho = "ㅋ";
+          reduceH();
+          continue;
+        } else if (next.choIdx === 3) { // ㄷ -> ㅌ
+          next.choIdx = 16;
+          next.cho = "ㅌ";
+          reduceH();
+          continue;
+        } else if (next.choIdx === 12) { // ㅈ -> ㅊ
+          next.choIdx = 14;
+          next.cho = "ㅊ";
+          reduceH();
+          continue;
+        } else if (next.choIdx === 9) { // ㅅ -> ㅆ
+          next.choIdx = 10;
+          next.cho = "ㅆ";
+          reduceH();
+          continue;
+        } else if (next.choIdx === 2) { // ㄴ
+          if (oldJong === "ㅎ") {
+            cur.jong = "ㄴ";
+            cur.jongIdx = 4;
+          } else if (oldJong === "ㄶ") {
+            cur.jong = "ㄴ";
+            cur.jongIdx = 4;
+          } else if (oldJong === "ㅀ") {
+            cur.jong = "ㄹ";
+            cur.jongIdx = 8;
+            next.cho = "ㄹ";
+            next.choIdx = 5;
+          }
+          continue;
+        } else if (next.choIdx === 11) { // ㅇ (vowel) -> ㅎ drops / moves
+          if (oldJong === "ㅎ") {
+            cur.jong = "";
+            cur.jongIdx = 0;
+          } else if (oldJong === "ㄶ") {
+            cur.jong = "";
+            cur.jongIdx = 0;
+            next.cho = "ㄴ";
+            next.choIdx = 2;
+          } else if (oldJong === "ㅀ") {
+            cur.jong = "";
+            cur.jongIdx = 0;
+            next.cho = "ㄹ";
+            next.choIdx = 5;
+          }
+          continue;
+        }
+      }
+    }
+
+    // 4. Liaison (연음법칙)
+    if (cur.jongIdx > 0 && next && !next.isRaw && next.choIdx === 11) {
+      if (cur.jong === "ㅇ") {
+        // Coda ㅇ stays ŋ
+        continue;
+      }
       const compoundMap: Record<string, { keep: number; move: number }> = {
-        "ㄳ": { keep: 1, move: 9 },
-        "ㄵ": { keep: 4, move: 12 },
-        "ㄶ": { keep: 4, move: 11 },
-        "ㄺ": { keep: 8, move: 0 },
-        "ㄻ": { keep: 8, move: 6 },
-        "ㄼ": { keep: 8, move: 7 },
-        "ㄽ": { keep: 8, move: 9 },
-        "ㄾ": { keep: 8, move: 16 },
-        "ㄿ": { keep: 8, move: 17 },
-        "ㅀ": { keep: 8, move: 11 },
-        "ㅄ": { keep: 7, move: 9 },
+        "ㄳ": { keep: 1, move: 10 }, // ㅆ
+        "ㄵ": { keep: 4, move: 12 }, // ㅈ
+        "ㄺ": { keep: 8, move: 0 },  // ㄱ
+        "ㄻ": { keep: 8, move: 6 },  // ㅁ
+        "ㄼ": { keep: 8, move: 7 },  // ㅂ
+        "ㄽ": { keep: 8, move: 10 }, // ㅆ
+        "ㄾ": { keep: 8, move: 16 }, // ㅌ
+        "ㄿ": { keep: 8, move: 17 }, // ㅍ
+        "ㅄ": { keep: 17, move: 10 }, // ㅆ
       };
 
       if (compoundMap[cur.jong]) {
@@ -206,44 +422,177 @@ export function applyPhonologicalRules(syllables: SyllableToken[]): SyllableToke
         next.choIdx = comp.move;
         next.cho = CHO_LIST[comp.move];
       } else {
-        const transferredChoIdx = CHO_LIST.indexOf(cur.jong);
-        if (transferredChoIdx !== -1) {
-          next.choIdx = transferredChoIdx;
-          next.cho = CHO_LIST[transferredChoIdx];
-          cur.jongIdx = 0;
-          cur.jong = "";
+        if (cur.jong === "ㅅ") {
+          next.choIdx = 9;
+          next.cho = "ㅅ";
+        } else if (cur.jong === "ㅆ") {
+          next.choIdx = 10;
+          next.cho = "ㅆ";
+        } else {
+          const transferredChoIdx = CHO_LIST.indexOf(cur.jong);
+          if (transferredChoIdx !== -1) {
+            next.choIdx = transferredChoIdx;
+            next.cho = CHO_LIST[transferredChoIdx];
+          }
         }
+        cur.jongIdx = 0;
+        cur.jong = "";
       }
       continue;
     }
 
-    // 4. Nasalization (비음화)
-    if (next.choIdx === 2 || next.choIdx === 6) {
-      if (["ㅂ", "ㅍ", "ㅄ", "ㄿ"].includes(cur.jong)) {
+    // 5. Lateralization & Nasalization of ㄹ (유음화 및 ㄹ의 비음화)
+    if (next && !next.isRaw && next.choIdx === 5) { // next is ㄹ
+      if (cur.jong === "ㄴ") { // ㄴ + ㄹ -> ㄹ + ㄹ
+        cur.jong = "ㄹ";
+        cur.jongIdx = 8;
+        continue;
+      } else if (["ㅁ", "ㅇ"].includes(cur.jong)) { // ㅁ/ㅇ + ㄹ -> ㅁ/ㅇ + ㄴ
+        next.cho = "ㄴ";
+        next.choIdx = 2;
+        continue;
+      } else if (["ㄱ", "ㄲ", "ㅋ", "ㄳ", "ㄺ"].includes(cur.jong)) {
+        cur.jong = "ㅇ";
+        cur.jongIdx = 21;
+        next.cho = "ㄴ";
+        next.choIdx = 2;
+        continue;
+      } else if (["ㅂ", "ㅍ", "ㄿ", "ㅄ"].includes(cur.jong)) {
+        cur.jong = "ㅁ";
+        cur.jongIdx = 16;
+        next.cho = "ㄴ";
+        next.choIdx = 2;
+        continue;
+      } else if (["ㄷ", "ㅅ", "ㅆ", "ㅈ", "ㅊ", "ㅌ", "ㅎ"].includes(cur.jong)) {
+        cur.jong = "ㄴ";
+        cur.jongIdx = 4;
+        next.cho = "ㄴ";
+        next.choIdx = 2;
+        continue;
+      }
+    } else if (next && !next.isRaw && next.choIdx === 2 && ["ㄹ", "ㄾ", "ㅀ"].includes(cur.jong)) { // ㄹ + ㄴ -> ㄹ + ㄹ
+      cur.jong = "ㄹ";
+      cur.jongIdx = 8;
+      next.cho = "ㄹ";
+      next.choIdx = 5;
+      continue;
+    }
+
+    // 6. Nasalization before ㄴ / ㅁ (비음화)
+    if (next && !next.isRaw && (next.choIdx === 2 || next.choIdx === 6)) {
+      if (["ㅂ", "ㅍ", "ㅄ", "ㄿ", "ㄼ"].includes(cur.jong)) {
         cur.jongIdx = 16;
         cur.jong = "ㅁ";
+        continue;
       } else if (["ㄷ", "ㅅ", "ㅆ", "ㅈ", "ㅊ", "ㅌ", "ㅎ"].includes(cur.jong)) {
         cur.jongIdx = 4;
         cur.jong = "ㄴ";
+        continue;
       } else if (["ㄱ", "ㄲ", "ㅋ", "ㄳ", "ㄺ"].includes(cur.jong)) {
         cur.jongIdx = 21;
         cur.jong = "ㅇ";
+        continue;
       }
     }
 
-    // 5. Lateralization (유음화)
-    if (cur.jong === "ㄴ" && next.choIdx === 5) {
-      cur.jongIdx = 8;
+    // 7. Tensification (경음화 / 된소리되기)
+    // 7a. Special ㄺ + ㄱ -> ㄹ + ㄲ
+    if (cur.jong === "ㄺ" && next && !next.isRaw && next.choIdx === 0) {
       cur.jong = "ㄹ";
-    } else if (cur.jong === "ㄹ" && next.choIdx === 2) {
-      next.choIdx = 5;
-      next.cho = "ㄹ";
+      cur.jongIdx = 8;
+      next.cho = "ㄲ";
+      next.choIdx = 1;
+      continue;
+    }
+
+    // 7b. Post-Obstruent Tensification
+    const obstruents = ["ㄱ", "ㄲ", "ㅋ", "ㄳ", "ㄺ", "ㄷ", "ㅅ", "ㅆ", "ㅈ", "ㅊ", "ㅌ", "ㅂ", "ㅍ", "ㄿ", "ㅄ"];
+    if (obstruents.includes(cur.jong) && next && !next.isRaw) {
+      if (next.choIdx === 0) { // ㄱ -> ㄲ
+        next.cho = "ㄲ";
+        next.choIdx = 1;
+      } else if (next.choIdx === 3) { // ㄷ -> ㄸ
+        next.cho = "ㄸ";
+        next.choIdx = 4;
+      } else if (next.choIdx === 7) { // ㅂ -> ㅃ
+        next.cho = "ㅃ";
+        next.choIdx = 8;
+      } else if (next.choIdx === 9) { // ㅅ -> ㅆ
+        next.cho = "ㅆ";
+        next.choIdx = 10;
+      } else if (next.choIdx === 12) { // ㅈ -> ㅉ
+        next.cho = "ㅉ";
+        next.choIdx = 13;
+      }
+    }
+  }
+
+  // Final Pass: Coda simplification & neutralization (자음군 단순화 및 음절 끝소리 규칙)
+  for (let i = 0; i < processed.length; i++) {
+    const cur = processed[i];
+    if (!cur || cur.isRaw || cur.jongIdx === 0) continue;
+
+    if (["ㄳ", "ㄺ", "ㄲ", "ㅋ"].includes(cur.jong)) {
+      cur.jong = "ㄱ";
+      cur.jongIdx = 1;
+    } else if (["ㄵ", "ㄶ"].includes(cur.jong)) {
+      cur.jong = "ㄴ";
+      cur.jongIdx = 4;
+    } else if (["ㄼ", "ㄽ", "ㄾ", "ㅀ"].includes(cur.jong)) {
+      cur.jong = "ㄹ";
+      cur.jongIdx = 8;
+    } else if (cur.jong === "ㄻ") {
+      cur.jong = "ㅁ";
+      cur.jongIdx = 16;
+    } else if (["ㄿ", "ㅄ", "ㅍ"].includes(cur.jong)) {
+      cur.jong = "ㅂ";
+      cur.jongIdx = 17;
+    } else if (["ㅅ", "ㅆ", "ㅈ", "ㅊ", "ㅌ", "ㅎ"].includes(cur.jong)) {
+      cur.jong = "ㄷ";
+      cur.jongIdx = 7;
     }
   }
 
   return processed;
 }
 
+/**
+ * Returns the phonetic Hangul pronunciation of a Korean string according to Standard Korean Phonology.
+ * (e.g. "감사합니다" -> "감사함니다", "국밥" -> "국빱", "굳이" -> "구지")
+ */
+export function koreanToPronunciation(inputText: string): string {
+  const normalized = normalizeKoreanText(inputText);
+  let result = "";
+  const parts = normalized.split(/(\s+|[.,!?~;:"]+)/);
+
+  for (const part of parts) {
+    if (!part) continue;
+    if (/^\s+$/.test(part) || /^[.,!?~;:"]+$/.test(part)) {
+      result += part;
+      continue;
+    }
+
+    const rawSyllables: SyllableToken[] = [];
+    for (let i = 0; i < part.length; i++) {
+      const char = part[i];
+      const decomposed = decomposeHangul(char);
+      if (decomposed) {
+        rawSyllables.push(decomposed);
+      } else {
+        rawSyllables.push({ char, isRaw: true });
+      }
+    }
+
+    const assimilated = applyPhonologicalRules(rawSyllables);
+    result += syllablesToHangul(assimilated);
+  }
+
+  return result.trim();
+}
+
+/**
+ * Converts Korean Hangul text into normalized, phonetically assimilated IPA monophthongs.
+ */
 export function convertKoreanToSpeechText(inputText: string): string {
   const normalized = normalizeKoreanText(inputText);
   let result = "";

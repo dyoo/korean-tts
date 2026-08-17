@@ -111,16 +111,49 @@ You can also import individual building blocks:
 ```typescript
 import {
   koreanToIpa,
+  koreanToPronunciation,
   decomposeHangul,
+  composeHangul,
+  numberToNativeKorean,
   createWavBlob,
   Visualizer,
 } from "korean-kokoro";
 
-// Phonetic Hangul-to-IPA transcription with assimilation rules
-const ipa = koreanToIpa("감사합니다"); // -> "kamsahamnida"
+// 1. Phonetic Hangul pronunciation according to Standard Korean rules (표준 발음법)
+const pron = koreanToPronunciation("국밥"); // -> "국빱"
+const thankYou = koreanToPronunciation("감사합니다"); // -> "감사함니다"
+const liaison = koreanToPronunciation("한국어"); // -> "한구거"
 
-// Convert raw Float32Array PCM samples to WAV Blob
+// 2. Phonetic Hangul-to-IPA transcription with assimilation rules
+const ipa = koreanToIpa("감사합니다"); // -> "kamsahamnita"
+
+// 3. Native Korean number conversion (순우리말 수사)
+const count = numberToNativeKorean(20, true); // -> "스무" (e.g. "스무 살")
+
+// 4. Convert raw Float32Array PCM samples to WAV Blob
 const wavBlob = createWavBlob(float32Array, 24000);
+```
+
+---
+
+## Unit Testing & Phonology Rules Suite
+
+The repository includes a comprehensive unit test suite covering Standard Korean Phonology rules (표준 발음법):
+- **Palatalization (구개음화)**: `굳이` → `[구지]`, `같이` → `[가치]`, `닫히다` → `[다치다]`
+- **Aspiration (격음화)**: `축하` → `[추카]`, `좋다` → `[조타]`, `맞히다` → `[마치다]`, `밝히다` → `[발키다]`
+- **Liaison & ㅎ-Elision (연음 & ㅎ 탈락)**: `한국어` → `[한구거]`, `좋아` → `[조아]`, `값이` → `[갑씨]`
+- **Nasalization (비음화)**: `국물` → `[궁물]`, `감사합니다` → `[감사함니다]`, `있는` → `[인는]`
+- **Liquid Nasalization (ㄹ의 비음화)**: `국립` → `[궁닙]`, `독립` → `[동닙]`, `대통령` → `[대통녕]`, `협력` → `[혐녁]`
+- **Lateralization (유음화)**: `신라` → `[실라]`, `난로` → `[날로]`, `설날` → `[설랄]`, `물난리` → `[물랄리]`
+- **Tensification / Glottalization (경음화)**: `국밥` → `[국빱]`, `학교` → `[학꾜]`, `있다` → `[읻따]`, `맑게` → `[말께]`
+- **Coda Neutralization (자음군 단순화 & 음절 끝소리)**: `닭` → `[닥]`, `값` → `[갑]`, `삶` → `[삼]`, `여덟` → `[여덜]`
+- **Native Korean Counting Units & Normalization**: `1개` → `한 개`, `2명` → `두 명`, `20살` → `스무 살`, `24,500원` → `이만 사천오백원`
+
+Run the test suite:
+```bash
+npm run test
+# or directly with Node:
+node --experimental-strip-types --test test/**/*.test.ts
 ```
 
 ---
@@ -131,14 +164,17 @@ const wavBlob = createWavBlob(float32Array, 24000);
 # 1. Install dependencies
 npm install
 
-# 2. Start dev server
+# 2. Run unit tests
+npm run test
+
+# 3. Start dev server
 npm run dev
 # Open http://localhost:5173
 
-# 3. Build library package (ESM + CJS + .d.ts)
+# 4. Build library package (ESM + CJS + .d.ts)
 npm run build:lib
 
-# 4. Build demo web app
+# 5. Build demo web app
 npm run build:demo
 ```
 

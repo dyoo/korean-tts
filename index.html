@@ -96,10 +96,14 @@
             <div class="phonetic-preview-card">
               <div class="phonetic-preview-header">
                 <div class="payload-header-left">
-                  <span>IPA Phonetic Payload:</span>
-                  <span class="badge-ipa">Pure Monophthongs</span>
+                  <span>Phonology & IPA Payload:</span>
+                  <span class="badge-ipa">Standard G2P</span>
                 </div>
                 <button id="toggleManualPhonemeBtn" class="btn-link">Edit Payload</button>
+              </div>
+              <div class="phonetic-pronunciation-row">
+                <span class="phonetic-pronunciation-label">표준 발음:</span>
+                <span id="phoneticPronunciationText" class="phonetic-pronunciation-text"></span>
               </div>
               <div id="phoneticPreviewText" class="phonetic-text"></div>
               <textarea id="manualPhonemeInput" class="manual-phoneme-input" rows="2" style="display: none;"></textarea>

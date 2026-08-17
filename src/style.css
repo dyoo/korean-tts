@@ -470,6 +470,27 @@ textarea#koreanInput:focus {
   margin-bottom: 0.4rem;
 }
 
+.phonetic-pronunciation-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.8rem;
+}
+
+.phonetic-pronunciation-label {
+  color: var(--text-muted);
+  font-size: 0.725rem;
+  font-weight: 500;
+}
+
+.phonetic-pronunciation-text {
+  color: #34d399;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
 .phonetic-text {
   font-family: var(--font-mono);
   font-size: 0.825rem;
