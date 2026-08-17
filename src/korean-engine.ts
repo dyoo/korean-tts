@@ -144,11 +144,38 @@ export function numberToKorean(numStr: string, isHour: boolean = false): string 
 }
 
 /**
- * Normalizes Korean text: numbers, dates, times, units, currency, and English acronyms.
+ * Normalizes Korean text: numbers, dates, times, decimals, percentages, phone numbers, units, currency, and English acronyms.
  */
 export function normalizeKoreanText(text: string): string {
-  // 1. Hours & Minutes (e.g. 3시 30분, 12시 5분)
-  let normalized = text.replace(/(\d{1,2})시\s*(\d{1,2})?분?/g, (_m, hour, min) => {
+  let normalized = text;
+
+  // 1. Percentages (e.g. 50% -> 50 퍼센트, 99.9% -> 99.9 퍼센트)
+  normalized = normalized.replace(/(\d+(?:\.\d+)?)\s*%/g, "$1 퍼센트");
+
+  // 2. Decimals (e.g. 3.14 -> 삼 점 일사)
+  normalized = normalized.replace(/(\d+)\.(\d+)/g, (_m, intPart, decPart) => {
+    const intKorean = numberToKorean(intPart, false);
+    const decDigits = Array.from(decPart).map((d) => SINO_DIGITS[parseInt(d as string, 10)]).join("");
+    return `${intKorean} 점 ${decDigits}`;
+  });
+
+  // 3. Phone numbers with hyphens (e.g. 010-1234-5678 -> 공일공 일이삼사 오육칠팔)
+  normalized = normalized.replace(/\b0(\d{1,2})-(\d{3,4})-(\d{4})\b/g, (_m, p1, p2, p3) => {
+    const toDigits = (str: string) => Array.from(str).map((c) => (c === "0" ? "공" : SINO_DIGITS[parseInt(c, 10)])).join("");
+    return `${toDigits("0" + p1)} ${toDigits(p2)} ${toDigits(p3)}`;
+  });
+
+  // 4. Ordinal '번째' (e.g. 1번째 -> 첫 번째, 2번째 -> 두 번째, 3번째 -> 세 번째)
+  normalized = normalized.replace(/(\d{1,2})\s*번째/g, (_m, numStr) => {
+    const n = parseInt(numStr, 10);
+    if (n === 1) return "첫 번째";
+    if (n >= 2 && n <= 9) return NATIVE_ATTR_ONES[n] + " 번째";
+    if (n >= 10 && n <= 99) return numberToNativeKorean(n, true) + " 번째";
+    return numStr + " 번째";
+  });
+
+  // 5. Hours & Minutes (e.g. 3시 30분, 12시 5분)
+  normalized = normalized.replace(/(\d{1,2})시\s*(\d{1,2})?분?/g, (_m, hour, min) => {
     let res = numberToKorean(hour, true) + "시";
     if (min) {
       res += " " + numberToKorean(min, false) + "분";
@@ -156,7 +183,7 @@ export function normalizeKoreanText(text: string): string {
     return res;
   });
 
-  // 2. Native Korean Counting Units (1-99 before counting nouns)
+  // 6. Native Korean Counting Units (1-99 before counting nouns)
   // e.g. 1개 -> 한 개, 2명 -> 두 명, 3살 -> 세 살, 4마리 -> 네 마리, 20살 -> 스무 살
   const nativeUnitPattern = /(\d{1,2})\s*(개|명|살|마리|잔|채|대|권|장|그루|송이|자루|켤레|통|벌|군데|가지|번|병|그릇|박스|팩|세트)/g;
   normalized = normalized.replace(nativeUnitPattern, (_m, numStr, unit) => {
@@ -167,16 +194,16 @@ export function normalizeKoreanText(text: string): string {
     return numberToKorean(numStr, false) + " " + unit;
   });
 
-  // 3. Sino-Korean units & currency (e.g. 24,500원, 2026년, 8월, 15일, 3층, 10호)
+  // 7. Sino-Korean units & currency (e.g. 24,500원, 2026년, 8월, 15일, 3층, 10호)
   normalized = normalized.replace(/(\d[\d,]*)\s*(원|년|월|일|층|호|점|등|도|미터|킬로미터|센티미터|밀리미터|그램|킬로그램|리터|밀리리터)/g, (_m, num, unit) => {
     const cleanNum = num.replace(/,/g, "");
     return numberToKorean(cleanNum, false) + unit;
   });
 
-  // 4. Standalone numbers
+  // 8. Standalone numbers
   normalized = normalized.replace(/\b\d+\b/g, (m) => numberToKorean(m, false));
 
-  // 5. English letters / acronyms transliteration (e.g. "AI" -> "에이아이", "TTS" -> "티티에스")
+  // 9. English letters / acronyms transliteration (e.g. "AI" -> "에이아이", "TTS" -> "티티에스")
   normalized = normalized.replace(/\b[A-Za-z]+\b/g, (match) => {
     return Array.from(match.toLowerCase())
       .map((c) => ENG_LETTER_MAP[c] || c)
@@ -525,6 +552,31 @@ export function applyPhonologicalRules(syllables: SyllableToken[]): SyllableToke
         next.choIdx = 13;
       }
     }
+
+    // 7c. Predicate stem tensification after ㄴ, ㄵ, ㅁ, ㄻ (어간 받침 뒤 경음화: 표준 발음법 제24항, 제25항)
+    const PREDICATE_STEMS_N_M = ["신", "앉", "젊", "삼", "안", "닮", "얹", "품", "숨", "감", "참", "굶", "넘", "더듬"];
+    const VERB_ENDINGS = ["다", "고", "지", "게", "소", "자", "든", "록"];
+    if (
+      ["ㄴ", "ㄵ", "ㅁ", "ㄻ"].includes(cur.jong) &&
+      PREDICATE_STEMS_N_M.includes(cur.char) &&
+      next &&
+      !next.isRaw &&
+      VERB_ENDINGS.includes(next.char)
+    ) {
+      if (next.choIdx === 3) { // ㄷ -> ㄸ
+        next.cho = "ㄸ";
+        next.choIdx = 4;
+      } else if (next.choIdx === 0) { // ㄱ -> ㄲ
+        next.cho = "ㄲ";
+        next.choIdx = 1;
+      } else if (next.choIdx === 12) { // ㅈ -> ㅉ
+        next.cho = "ㅉ";
+        next.choIdx = 13;
+      } else if (next.choIdx === 9) { // ㅅ -> ㅆ
+        next.cho = "ㅆ";
+        next.choIdx = 10;
+      }
+    }
   }
 
   // Final Pass: Coda simplification & neutralization (자음군 단순화 및 음절 끝소리 규칙)
@@ -592,6 +644,8 @@ export function koreanToPronunciation(inputText: string): string {
 
 /**
  * Converts Korean Hangul text into normalized, phonetically assimilated IPA monophthongs.
+ * Features allophonic voicing of plain stops (ɡ, d, b, d͡ʑ), palatalization (ɕ, ɕ͈),
+ * and lateral gemination (ll).
  */
 export function convertKoreanToSpeechText(inputText: string): string {
   const normalized = normalizeKoreanText(inputText);
@@ -625,7 +679,31 @@ export function convertKoreanToSpeechText(inputText: string): string {
         continue;
       }
 
-      const choStr = CHO_IPA[s.choIdx];
+      const prev = i > 0 && !assimilated[i - 1].isRaw ? (assimilated[i - 1] as DecomposedHangul) : null;
+      let choStr = CHO_IPA[s.choIdx];
+      const isIorY = s.jung === "ㅣ" || ["ㅑ", "ㅒ", "ㅕ", "ㅖ", "ㅛ", "ㅠ", "ㅟ"].includes(s.jung);
+
+      // 1. Palatalization of /s/ and /s͈/ before /i/ or /j/ -> [ɕ, ɕ͈]
+      if (s.choIdx === 9 && isIorY) { // ㅅ
+        choStr = "ɕ";
+      } else if (s.choIdx === 10 && isIorY) { // ㅆ
+        choStr = "ɕ͈";
+      }
+
+      // 2. Geminate lateral /l/ when preceded by coda /l/
+      if (s.choIdx === 5 && prev && (prev.jongIdx === 8 || prev.jong === "ㄹ")) {
+        choStr = "l";
+      }
+
+      // 3. Intervocalic / Post-sonorant voicing of plain stops (ㄱ, ㄷ, ㅂ, ㅈ)
+      const prevIsSonorant = prev && (prev.jongIdx === 0 || [4, 8, 16, 21].includes(prev.jongIdx));
+      if (prevIsSonorant) {
+        if (s.choIdx === 0) choStr = "ɡ";        // ㄱ -> ɡ
+        else if (s.choIdx === 3) choStr = "d";   // ㄷ -> d
+        else if (s.choIdx === 7) choStr = "b";   // ㅂ -> b
+        else if (s.choIdx === 12) choStr = "d͡ʑ"; // ㅈ -> d͡ʑ
+      }
+
       const jungStr = JUNG_IPA[s.jungIdx];
       const jongStr = JONG_IPA[s.jongIdx];
 

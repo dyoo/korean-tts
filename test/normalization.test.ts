@@ -100,4 +100,30 @@ describe("Korean Text & Number Normalization", () => {
       assert.equal(normalizeKoreanText("OK"), "오케이");
     });
   });
+
+  describe("6. Decimals, Percentages, Phone Numbers & Ordinals", () => {
+    it("should normalize percentages", () => {
+      assert.equal(normalizeKoreanText("50%"), "오십 퍼센트");
+      assert.equal(normalizeKoreanText("100%"), "백 퍼센트");
+      assert.equal(normalizeKoreanText("99.9%"), "구십구 점 구 퍼센트");
+    });
+
+    it("should normalize decimal numbers", () => {
+      assert.equal(normalizeKoreanText("3.14"), "삼 점 일사");
+      assert.equal(normalizeKoreanText("0.5"), "영 점 오");
+    });
+
+    it("should normalize phone numbers", () => {
+      assert.equal(normalizeKoreanText("010-1234-5678"), "공일공 일이삼사 오육칠팔");
+      assert.equal(normalizeKoreanText("02-123-4567"), "공이 일이삼 사오육칠");
+    });
+
+    it("should normalize ordinal suffixes (번째)", () => {
+      assert.equal(normalizeKoreanText("1번째"), "첫 번째");
+      assert.equal(normalizeKoreanText("2번째"), "두 번째");
+      assert.equal(normalizeKoreanText("3번째"), "세 번째");
+      assert.equal(normalizeKoreanText("10번째"), "열 번째");
+      assert.equal(normalizeKoreanText("20번째"), "스무 번째");
+    });
+  });
 });

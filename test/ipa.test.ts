@@ -49,10 +49,10 @@ describe("Hangul to IPA Conversion (음소 변환 및 Kokoro IPA)", () => {
     });
   });
 
-  describe("2. Assimilated IPA Output", () => {
-    it("should transcribe '감사합니다' with nasalization (ㅂ -> ㅁ)", () => {
+  describe("2. Assimilated & Allophonic IPA Output", () => {
+    it("should transcribe '감사합니다' with nasalization and intervocalic voicing", () => {
       const ipa = koreanToIpa("감사합니다");
-      assert.equal(ipa, "kamsahamnita");
+      assert.equal(ipa, "kamsahamnida");
     });
 
     it("should transcribe '국밥' with tensification (ㅂ -> ㅃ)", () => {
@@ -62,7 +62,7 @@ describe("Hangul to IPA Conversion (음소 변환 및 Kokoro IPA)", () => {
 
     it("should transcribe '굳이' with palatalization (ㄷ -> ㅈ)", () => {
       const ipa = koreanToIpa("굳이");
-      assert.equal(ipa, "kut͡ɕi");
+      assert.equal(ipa, "kud͡ʑi");
     });
 
     it("should transcribe '좋다' with aspiration (ㅎ+ㄷ -> ㅌ)", () => {
@@ -70,9 +70,24 @@ describe("Hangul to IPA Conversion (음소 변환 및 Kokoro IPA)", () => {
       assert.equal(ipa, "t͡ɕotʰa");
     });
 
-    it("should transcribe '신라' with lateralization (ㄴ+ㄹ -> ㄹㄹ)", () => {
+    it("should transcribe '신라' with lateral gemination (ll) and palatalized (ɕ)", () => {
       const ipa = koreanToIpa("신라");
-      assert.equal(ipa, "silɾa");
+      assert.equal(ipa, "ɕilla");
+    });
+
+    it("should transcribe '시간' with palatalized (ɕ) and voiced (ɡ)", () => {
+      const ipa = koreanToIpa("시간");
+      assert.equal(ipa, "ɕiɡan");
+    });
+
+    it("should transcribe '아버지' with intervocalic voiced (b) and (d͡ʑ)", () => {
+      const ipa = koreanToIpa("아버지");
+      assert.equal(ipa, "abʌd͡ʑi");
+    });
+
+    it("should transcribe '친구' with post-nasal voiced (ɡ)", () => {
+      const ipa = koreanToIpa("친구");
+      assert.equal(ipa, "t͡ɕʰinɡu");
     });
 
     it("should transcribe '국립' with liquid nasalization (ㄱ+ㄹ -> ㅇ+ㄴ)", () => {
