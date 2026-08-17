@@ -201,7 +201,7 @@ $$\text{choIdx} = \lfloor \text{offset} / 588 \rfloor, \quad \text{jungIdx} = \l
 
 ### Stage 3: Multi-Pass Phonological Transformation (`applyPhonologicalRules`)
 
-Applies the official Standard Korean Phonology rules (국립국어원 표준 발음법) across syllable boundaries:
+Applies the official [Standard Korean Pronunciation Rules (국립국어원 표준 발음법)](https://kornorms.korean.go.kr/regltn/regltnView.do?regltn_code=0002) across syllable boundaries:
 
 1. **Palatalization (구개음화 — 제17항)**:
    - `ㄷ, ㅌ, ㄾ` before `ㅣ` or `j`-glides become `ㅈ, ㅊ`:
@@ -384,6 +384,15 @@ npm run build:lib
 # 5. Build demo web app
 npm run build:demo
 ```
+
+---
+
+## References & Standards
+
+- **[국립국어원 표준어 규정 — 제2부 표준 발음법 (National Institute of Korean Language)](https://kornorms.korean.go.kr/regltn/regltnView.do?regltn_code=0002)**: The official statutory Standard Korean Pronunciation Regulations (Articles 1–30) with clause-by-clause linguistic commentary.
+- **[대한민국 국가법령정보센터 — 문화체육관광부 고시 제2017-13호 (표준어 규정)](https://www.law.go.kr/행정규칙/표준어규정)**: Official Republic of Korea Ministry of Culture, Sports and Tourism public notice.
+- **[국립국어원 한국어 어문 규범 포털](https://kornorms.korean.go.kr/)**: Official Korean language norms portal (Orthography, Pronunciation, Foreign Loanword Transcription, and Romanization).
+- **[Wikipedia: Korean Phonology](https://en.wikipedia.org/wiki/Korean_phonology)**: Comprehensive linguistic overview of the sound system of modern Korean.
 
 ---
 
