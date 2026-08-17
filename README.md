@@ -201,7 +201,7 @@ $$\text{choIdx} = \lfloor \text{offset} / 588 \rfloor, \quad \text{jungIdx} = \l
 
 ### Stage 3: Multi-Pass Phonological Transformation (`applyPhonologicalRules`)
 
-Applies the official [Standard Korean Pronunciation Rules (국립국어원 표준 발음법)](https://kornorms.korean.go.kr/regltn/regltnView.do?regltn_code=0002) across syllable boundaries:
+Applies the official [Standard Korean Pronunciation Rules (국립국어원 표준 발음법)](https://ko.wikisource.org/wiki/%ED%91%9C%EC%A4%80%EC%96%B4_%EA%B7%9C%EC%A0%95#%EC%A0%9C2%EB%B6%80_%ED%91%9C%EC%A4%80_%EB%B0%9C%EC%9D%8C%EB%B2%95) across syllable boundaries:
 
 1. **Palatalization (구개음화 — 제17항)**:
    - `ㄷ, ㅌ, ㄾ` before `ㅣ` or `j`-glides become `ㅈ, ㅊ`:
@@ -389,8 +389,8 @@ npm run build:demo
 
 ## References & Standards
 
-- **[국립국어원 표준어 규정 — 제2부 표준 발음법 (National Institute of Korean Language)](https://kornorms.korean.go.kr/regltn/regltnView.do?regltn_code=0002)**: The official Standard Korean Pronunciation Regulations (Articles 1–30) with clause-by-clause linguistic rules and commentary.
-- **[국립국어원 한국어 어문 규범 포털](https://kornorms.korean.go.kr/)**: Official Korean language norms portal (Orthography, Pronunciation, Foreign Loanword Transcription, and Romanization).
+- **[국립국어원 표준어 규정 — 제2부 표준 발음법 (Wikisource Full Text)](https://ko.wikisource.org/wiki/%ED%91%9C%EC%A4%80%EC%96%B4_%EA%B7%9C%EC%A0%95#%EC%A0%9C2%EB%B6%80_%ED%91%9C%EC%A4%80_%EB%B0%9C%EC%9D%8C%EB%B2%95)**: Complete official statutory text of the Standard Korean Pronunciation Rules (Articles 1–30, covering liaison, palatalization, aspiration, nasalization, liquid assimilation, tensification, and coda reduction).
+- **[National Institute of Korean Language Portal (국립국어원 한국어 어문 규범)](https://kornorms.korean.go.kr/regltn/regltnView.do?regltn_code=0002)**: Official NIKL regulations and commentary.
 - **[Wikipedia: Korean Phonology](https://en.wikipedia.org/wiki/Korean_phonology)**: Comprehensive linguistic overview of the sound system of modern Korean.
 
 ---
