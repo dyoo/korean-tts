@@ -187,12 +187,15 @@ Raw inputs often contain digits, currency, dates, percentages, and acronyms that
    - `24,500원` → `이만 사천오백원`, `2026년 8월 15일` → `이천이십육년 팔월 십오일`.
 5. **English Acronyms & Letters**:
    - `AI 모델` → `에이아이 모델`, `TTS` → `티티에스`, `OK` → `오케이`.
+6. **Standalone Jamo Normalization (단독 자모 발음)**:
+   - **Standalone Vowels**: Mapped to canonical zero-onset syllables (`ㅗ` → `오` [o], `ㅏ` → `아` [a], `ㅜ` → `우` [u], `ㅣ` → `이` [i], `ㅐ` → `애` [ɛ]).
+   - **Standalone Consonants**: Vocalized with phonetic base vowel `ㅡ` (`ㄱ` → `그` [kɯ], `ㄴ` → `느` [nɯ], `ㄷ` → `드` [tɯ], `ㅅ` → `스` [sɯ], `ㅋ` → `크` [kʰɯ], `ㄲ` → `끄` [k͈ɯ], `ㅇ` → `응` [ɯŋ]).
 
 ---
 
 ### Stage 2: Syllabic Jamo Decomposition (`decomposeHangul`)
 
-Hangul syllables in the Unicode range `0xAC00`–`0xD7A3` are decomposed arithmetically into their 19 Initial Consonants (초성), 21 Vowels (중성), and 28 Final Codas (종성):
+Hangul syllables in the Unicode range `0xAC00`–`0xD7A3` (and standalone compatibility Jamos `0x3131`–`0x318E` / `0x1100`–`0x11FF`) are decomposed arithmetically into their 19 Initial Consonants (초성), 21 Vowels (중성), and 28 Final Codas (종성):
 
 $$\text{offset} = \text{charCode} - \text{0xAC00}$$
 $$\text{choIdx} = \lfloor \text{offset} / 588 \rfloor, \quad \text{jungIdx} = \lfloor (\text{offset} / 28) \bmod 21 \rfloor, \quad \text{jongIdx} = \text{offset} \bmod 28$$

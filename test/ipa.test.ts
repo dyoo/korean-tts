@@ -131,4 +131,55 @@ describe("Hangul to IPA Conversion (음소 변환 및 Kokoro IPA)", () => {
       assert.ok(ipa.endsWith("!"));
     });
   });
+
+  describe("5. Standalone Jamo Voicing (Issue #2)", () => {
+    it("should correctly voice isolated vowels as zero-onset syllables (e.g. ㅗ -> [오] / o)", () => {
+      assert.equal(koreanToIpa("ㅗ"), "o");
+      assert.equal(koreanToIpa("ㅏ"), "a");
+      assert.equal(koreanToIpa("ㅓ"), "ʌ");
+      assert.equal(koreanToIpa("ㅜ"), "u");
+      assert.equal(koreanToIpa("ㅡ"), "ɯ");
+      assert.equal(koreanToIpa("ㅣ"), "i");
+      assert.equal(koreanToIpa("ㅐ"), "ɛ");
+      assert.equal(koreanToIpa("ㅔ"), "e");
+      assert.equal(koreanToIpa("ㅑ"), "ja");
+      assert.equal(koreanToIpa("ㅕ"), "jʌ");
+      assert.equal(koreanToIpa("ㅛ"), "jo");
+      assert.equal(koreanToIpa("ㅠ"), "ju");
+      assert.equal(koreanToIpa("ㅘ"), "wa");
+      assert.equal(koreanToIpa("ㅙ"), "wɛ");
+      assert.equal(koreanToIpa("ㅚ"), "we");
+      assert.equal(koreanToIpa("ㅝ"), "wʌ");
+      assert.equal(koreanToIpa("ㅞ"), "we");
+      assert.equal(koreanToIpa("ㅟ"), "ɥi");
+      assert.equal(koreanToIpa("ㅢ"), "ɰi");
+    });
+
+    it("should correctly voice isolated consonants as phonetic base syllables with 'ㅡ' (e.g. ㄱ -> [그] / kɯ)", () => {
+      assert.equal(koreanToIpa("ㄱ"), "kɯ");
+      assert.equal(koreanToIpa("ㄴ"), "nɯ");
+      assert.equal(koreanToIpa("ㄷ"), "tɯ");
+      assert.equal(koreanToIpa("ㄹ"), "ɾɯ");
+      assert.equal(koreanToIpa("ㅁ"), "mɯ");
+      assert.equal(koreanToIpa("ㅂ"), "pɯ");
+      assert.equal(koreanToIpa("ㅅ"), "sɯ");
+      assert.equal(koreanToIpa("ㅇ"), "ɯŋ");
+      assert.equal(koreanToIpa("ㅈ"), "ʨɯ");
+      assert.equal(koreanToIpa("ㅊ"), "ʨʰɯ");
+      assert.equal(koreanToIpa("ㅋ"), "kʰɯ");
+      assert.equal(koreanToIpa("ㅌ"), "tʰɯ");
+      assert.equal(koreanToIpa("ㅍ"), "pʰɯ");
+      assert.equal(koreanToIpa("ㅎ"), "hɯ");
+      assert.equal(koreanToIpa("ㄲ"), "k͈ɯ");
+      assert.equal(koreanToIpa("ㄸ"), "t͈ɯ");
+      assert.equal(koreanToIpa("ㅃ"), "p͈ɯ");
+      assert.equal(koreanToIpa("ㅆ"), "s͈ɯ");
+      assert.equal(koreanToIpa("ㅉ"), "ʨ͈ɯ");
+    });
+
+    it("should correctly voice sequences of standalone jamos", () => {
+      assert.equal(koreanToIpa("ㅏ ㅑ ㅓ ㅕ ㅗ ㅛ ㅜ ㅠ ㅡ ㅣ"), "a ja ʌ jʌ o jo u ju ɯ i");
+      assert.equal(koreanToIpa("ㄱ, ㄴ, ㄷ, ㄹ"), "kɯ, nɯ, tɯ, ɾɯ");
+    });
+  });
 });

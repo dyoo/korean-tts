@@ -70,6 +70,51 @@ const ENG_LETTER_MAP: Record<string, string> = {
 };
 
 /**
+ * Phonetic syllabic mapping for standalone Korean consonants (vocalized with ㅡ).
+ * Handles both Compatibility Jamo (U+3131..U+314E) and Unicode Hangul Jamo (U+1100..U+1112 / U+11A8..U+11C2).
+ */
+export const JAMO_CONSONANT_SYLLABLES: Record<string, string> = {
+  // 14 Plain & Aspirated Consonants
+  "ㄱ": "그", "ㄴ": "느", "ㄷ": "드", "ㄹ": "르", "ㅁ": "므",
+  "ㅂ": "브", "ㅅ": "스", "ㅇ": "응", "ㅈ": "즈", "ㅊ": "츠",
+  "ㅋ": "크", "ㅌ": "트", "ㅍ": "프", "ㅎ": "흐",
+  // 5 Tense Consonants (쌍자음)
+  "ㄲ": "끄", "ㄸ": "뜨", "ㅃ": "쁘", "ㅆ": "쓰", "ㅉ": "쯔",
+  // 11 Compound Codas (겹받침)
+  "ㄳ": "그스", "ㄵ": "느즈", "ㄶ": "느", "ㄺ": "르그", "ㄻ": "르므",
+  "ㄼ": "르브", "ㄽ": "르스", "ㄾ": "르트", "ㄿ": "르프", "ㅀ": "르",
+  "ㅄ": "브스",
+  // Unicode Hangul Jamo Onsets (U+1100..U+1112)
+  "\u1100": "그", "\u1101": "끄", "\u1102": "느", "\u1103": "드", "\u1104": "뜨",
+  "\u1105": "르", "\u1106": "므", "\u1107": "브", "\u1108": "쁘", "\u1109": "스",
+  "\u110A": "쓰", "\u110B": "응", "\u110C": "즈", "\u110D": "쯔", "\u110E": "츠",
+  "\u110F": "크", "\u1110": "트", "\u1111": "프", "\u1112": "흐",
+  // Unicode Hangul Jamo Codas (U+11A8..U+11C2)
+  "\u11A8": "그", "\u11A9": "끄", "\u11AA": "그스", "\u11AB": "느", "\u11AC": "느즈",
+  "\u11AD": "느", "\u11AE": "드", "\u11AF": "르", "\u11B0": "르그", "\u11B1": "르므",
+  "\u11B2": "르브", "\u11B3": "르스", "\u11B4": "르트", "\u11B5": "르프", "\u11B6": "르",
+  "\u11B7": "므", "\u11B8": "브", "\u11B9": "브스", "\u11BA": "스", "\u11BB": "쓰",
+  "\u11BC": "응", "\u11BD": "즈", "\u11BE": "츠", "\u11BF": "크", "\u11C0": "트",
+  "\u11C1": "프", "\u11C2": "흐"
+};
+
+/**
+ * Standard zero-onset syllabic forms for standalone Korean vowels (composed with ㅇ).
+ * Handles both Compatibility Jamo (U+314F..U+3163) and Unicode Hangul Jamo Vowels (U+1161..U+1175).
+ */
+export const JAMO_VOWEL_SYLLABLES: Record<string, string> = {
+  "ㅏ": "아", "ㅐ": "애", "ㅑ": "야", "ㅒ": "얘", "ㅓ": "어",
+  "ㅔ": "에", "ㅕ": "여", "ㅖ": "예", "ㅗ": "오", "ㅘ": "와",
+  "ㅙ": "왜", "ㅚ": "외", "ㅛ": "요", "ㅜ": "우", "ㅝ": "워",
+  "ㅞ": "웨", "ㅟ": "위", "ㅠ": "유", "ㅡ": "으", "ㅢ": "의", "ㅣ": "이",
+  // Unicode Hangul Jamo Vowels (U+1161..U+1175)
+  "\u1161": "아", "\u1162": "애", "\u1163": "야", "\u1164": "얘", "\u1165": "어",
+  "\u1166": "에", "\u1167": "여", "\u1168": "예", "\u1169": "오", "\u116A": "와",
+  "\u116B": "왜", "\u116C": "외", "\u116D": "요", "\u116E": "우", "\u116F": "워",
+  "\u1170": "웨", "\u1171": "위", "\u1172": "유", "\u1173": "으", "\u1174": "의", "\u1175": "이"
+};
+
+/**
  * Converts a number to Native Korean (순우리말 수사).
  * @param num Number from 1 to 99
  * @param isAttributive If true, uses attributive form before nouns (한, 두, 세, 네, 스무)
@@ -210,13 +255,32 @@ export function normalizeKoreanText(text: string): string {
       .join("");
   });
 
+  // 10. Standalone Jamos (Compatibility Jamo & Unicode Jamo)
+  // Vowels -> Zero-onset syllables with ㅇ (e.g. ㅗ -> 오, ㅏ -> 아)
+  // Consonants -> Phonetic base syllables with ㅡ (e.g. ㄱ -> 그, ㄴ -> 느, ㅋ -> 크, ㄲ -> 끄)
+  normalized = normalized.replace(
+    /[\u314F-\u3163\u1161-\u1175]/g,
+    (c) => JAMO_VOWEL_SYLLABLES[c] || c
+  );
+  normalized = normalized.replace(
+    /[\u3131-\u314E\u1100-\u1112\u11A8-\u11C2]/g,
+    (c) => JAMO_CONSONANT_SYLLABLES[c] || c
+  );
+
   return normalized;
 }
 
 /**
  * Decomposes a Hangul character into its constituent Cho, Jung, and Jong components.
+ * Standalone jamos (e.g. ㅗ, ㄱ) are automatically mapped to their canonical syllables (오, 그).
  */
 export function decomposeHangul(char: string): DecomposedHangul | null {
+  if (JAMO_VOWEL_SYLLABLES[char]) {
+    char = JAMO_VOWEL_SYLLABLES[char];
+  } else if (JAMO_CONSONANT_SYLLABLES[char]) {
+    char = JAMO_CONSONANT_SYLLABLES[char];
+  }
+
   const code = char.charCodeAt(0);
   if (code < 0xAC00 || code > 0xD7A3) return null;
   const offset = code - 0xAC00;
@@ -759,7 +823,11 @@ export function convertKoreanToSpeechText(inputText: string): string {
 
 export function isHangul(char: string): boolean {
   const code = char.charCodeAt(0);
-  return code >= 0xac00 && code <= 0xd7a3;
+  return (
+    (code >= 0xac00 && code <= 0xd7a3) || // Hangul Syllables
+    (code >= 0x3131 && code <= 0x318e) || // Compatibility Jamo
+    (code >= 0x1100 && code <= 0x11ff)    // Hangul Jamo
+  );
 }
 
 export const koreanToIpa = convertKoreanToSpeechText;
