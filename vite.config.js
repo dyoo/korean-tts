@@ -6,6 +6,7 @@ export default defineConfig(({ mode }) => {
   const isLib = mode === "lib" || process.env.BUILD_MODE === "lib";
 
   return {
+    base: "./",
     plugins: isLib
       ? [
           dts({
