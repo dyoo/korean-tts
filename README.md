@@ -249,12 +249,12 @@ Converts the assimilated syllable tokens into accurate International Phonetic Al
      - `빨리` → `p͈alli`
 4. **Unreleased Stop Codas (`[k̚, t̚, p̚]`)**:
    - Syllable-final stops are marked as unreleased: `국밥` → `kuk̚p͈ap̚`.
-5. **Vowel Hiatus & Zero-Onset Boundaries (`[.]`)**:
-   - Open syllables ending in a vowel followed by a zero-onset syllable (`ㅇ`) receive a syllable boundary marker `.` to prevent multilingual diphthong fusion:
-     - `내일` → `nɛ.il`
-     - `오이` → `o.i`
-     - `아이` → `a.i`
-     - `좋은` → `ʨo.ɯn`
+5. **Vowel Hiatus & Zero-Onset Boundaries (`[ˌ]`)**:
+   - Open syllables ending in a vowel followed by a zero-onset syllable (`ㅇ`) receive a secondary stress syllable foot marker `ˌ` (Token ID 161) to create a crisp, micro-beat syllable transition while preventing diphthong collapse:
+     - `내일` → `nɛˌil`
+     - `오이` → `oˌi`
+     - `아이` → `aˌi`
+     - `좋은` → `ʨoˌɯn`
 
 ---
 
@@ -344,12 +344,12 @@ Kokoro's vocabulary consists of 115 valid tokens indexed across ID 0 to 177:
 * **Acoustic Behavior**: The tokenizer strips `̚` and tokens become `k`, `t`, `p`. Because these tokens reside in syllable coda position before a boundary or subsequent onset, Kokoro's acoustic model naturally decays them without release bursts.
 
 #### 5. Vowel Hiatus & Zero-Onset Syllable Transition (`내일`, `아이`, `오이`)
-* **The Problem**: When a vowel-final syllable is followed by an `ㅇ`-onset syllable (e.g. `내일` $\rightarrow$ `내` + `일` $\rightarrow$ `nɛil`), direct concatenation of `ɛ` + `i` without boundary markers causes multilingual acoustic models to fuse the adjacent vowels into a single English-like diphthong (e.g. pronouncing `내일` as the 1-syllable English word "nail" /neɪl/).
-* **The Solution**: The engine automatically detects vowel hiatus across zero-onset boundaries (`prev.jongIdx === 0 && s.choIdx === 11`) and inserts a syllable boundary marker `.`:
-  - `내일` → `nɛ.il` (2 discrete syllable beats "nae" + "il" instead of 1-syllable "nail")
-  - `오이` → `o.i`
-  - `아이` → `a.i`
-  - `좋은` → `ʨo.ɯn`
+* **The Problem**: When a vowel-final syllable is followed by an `ㅇ`-onset syllable (e.g. `내일` $\rightarrow$ `내` + `일` $\rightarrow$ `nɛil`), direct concatenation of `ɛ` + `i` without boundary markers causes multilingual acoustic models to fuse the adjacent vowels into a single English-like diphthong (e.g. pronouncing `내일` as the 1-syllable English word "nail" /neɪl/). Full punctuation marks like `.` introduce an unnaturally long sentence-level pause (~250ms).
+* **The Solution**: The engine automatically detects vowel hiatus across zero-onset boundaries (`prev.jongIdx === 0 && s.choIdx === 11`) and inserts a secondary stress syllable foot marker `ˌ` (Token ID 161 / `\u02CC`). This creates a crisp, natural 2-syllable beat without dead silence:
+  - `내일` → `nɛˌil` (0.82s vs 2.08s with `.`)
+  - `오이` → `oˌi`
+  - `아이` → `aˌi`
+  - `좋은` → `ʨoˌɯn`
 
 ---
 

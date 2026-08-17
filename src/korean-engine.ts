@@ -741,10 +741,10 @@ export function convertKoreanToSpeechText(inputText: string): string {
         else if (s.choIdx === 12) choStr = "ʥ";  // ㅈ -> ʥ
       }
 
-      // 4. Vowel hiatus resolution across zero-onset syllable boundaries (e.g. 내일 -> nɛ.il, 오이 -> o.i)
-      // Prevents multilingual acoustic models from collapsing adjacent Korean vowels into English diphthongs.
+      // 4. Vowel hiatus resolution across zero-onset syllable boundaries (e.g. 내일 -> nɛˌil, 오이 -> oˌi)
+      // Uses secondary stress 'ˌ' (Token ID 161) to mark a discrete syllable onset without the heavy pause of '.'
       if (prev && prev.jongIdx === 0 && s.choIdx === 11) {
-        choStr = "." + choStr;
+        choStr = "ˌ" + choStr;
       }
 
       const jungStr = JUNG_IPA[s.jungIdx];
