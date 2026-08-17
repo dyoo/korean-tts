@@ -577,6 +577,43 @@ export function applyPhonologicalRules(syllables: SyllableToken[]): SyllableToke
         next.choIdx = 10;
       }
     }
+
+    // 7d. Sino-Korean ㄹ Tensification (한자어 'ㄹ' 받침 뒤 경음화: 표준 발음법 제26항)
+    // 한자어에서 'ㄹ' 받침 뒤에 연결되는 'ㄷ, ㅅ, ㅈ'은 된소리로 발음한다.
+    const SINO_L_ROOTS = new Set([
+      "갈", "결", "골", "굴", "궐", "길", "날", "달", "돌", "렬", "류", "률", "말", "멸", "몰", "물",
+      "밀", "발", "벌", "불", "살", "설", "솔", "실", "알", "열", "염", "엽", "영", "월", "율",
+      "을", "일", "절", "점", "졸", "줄", "질", "찰", "철", "첨", "첩", "촐", "총", "칠", "탈",
+      "팔", "필", "학", "할", "활", "혈", "홀", "휼", "훌", "힐", "출"
+    ]);
+
+    const SINO_TENSE_ONSETS = new Set([
+      // ㄷ
+      "등", "단", "도", "달", "동", "득", "대", "덕", "담", "두", "독", "답", "당",
+      // ㅅ
+      "수", "상", "세", "식", "성", "서", "산", "승", "소", "송", "심", "선", "설", "실", "생", "신", "속", "숙", "손", "시", "사", "석", "술", "습", "순",
+      // ㅈ
+      "정", "전", "질", "증", "자", "저", "점", "조", "진", "작", "재", "장", "직", "제", "절", "족", "주", "중", "집", "존", "준", "지"
+    ]);
+
+    if (
+      (cur.jong === "ㄹ" || cur.jongIdx === 8) &&
+      SINO_L_ROOTS.has(cur.char) &&
+      next &&
+      !next.isRaw &&
+      SINO_TENSE_ONSETS.has(next.char)
+    ) {
+      if (next.choIdx === 3) { // ㄷ -> ㄸ
+        next.cho = "ㄸ";
+        next.choIdx = 4;
+      } else if (next.choIdx === 9) { // ㅅ -> ㅆ
+        next.cho = "ㅆ";
+        next.choIdx = 10;
+      } else if (next.choIdx === 12) { // ㅈ -> ㅉ
+        next.cho = "ㅉ";
+        next.choIdx = 13;
+      }
+    }
   }
 
   // Final Pass: Coda simplification & neutralization (자음군 단순화 및 음절 끝소리 규칙)
