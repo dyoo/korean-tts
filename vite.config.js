@@ -12,7 +12,7 @@ export default defineConfig(({ mode }) => {
           dts({
             rollupTypes: true,
             include: ["src"],
-            exclude: ["src/main.ts"],
+            exclude: ["src/main.ts", "src/tts.worker.ts"],
           }),
         ]
       : [],

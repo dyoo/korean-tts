@@ -1,21 +1,29 @@
 import {
-  KoreanSpeaker,
-  type SpeakerProgress,
-  type StorageInfo,
-} from "./korean-speaker";
-import {
+  KOKORO_VOICES,
   KOREAN_SENTENCE_PRESETS,
+  convertKoreanToSpeechText,
   koreanToPronunciation,
   type SentenceItem,
   type VoiceConfig,
 } from "./korean-engine";
-import { Visualizer } from "./audio-utils";
-
-// KoreanSpeaker Instance
-const speaker = new KoreanSpeaker();
+import { createWavBlob, Visualizer } from "./audio-utils";
+import type { SpeakerProgress } from "./korean-speaker";
+import type { StorageInfo } from "./storage-utils";
+import type { WorkerResponse } from "./tts.worker";
 
 // State
-let isModelLoading: boolean = false;
+let ttsWorker: Worker | null = null;
+let isWorkerReady: boolean = false;
+let isWorkerLoading: boolean = false;
+let requestIdCounter: number = 0;
+const pendingRequests = new Map<
+  string,
+  {
+    resolve: (val: any) => void;
+    reject: (err: Error) => void;
+  }
+>();
+
 let currentAudioBuffer: Float32Array | null = null;
 let currentWavBlob: Blob | null = null;
 let currentAudioDuration: number = 0;
@@ -77,20 +85,113 @@ const downloadWavBtn = document.getElementById("downloadWavBtn") as HTMLButtonEl
 
 const visualizer = new Visualizer(waveformCanvas);
 
+// Initialize Dedicated TTS Worker
+function getWorker(): Worker {
+  if (ttsWorker) return ttsWorker;
+
+  ttsWorker = new Worker(new URL("./tts.worker.ts", import.meta.url), {
+    type: "module",
+  });
+
+  ttsWorker.onmessage = (event: MessageEvent<WorkerResponse>) => {
+    const msg = event.data;
+
+    switch (msg.type) {
+      case "STORAGE_INFO":
+        renderStorageBadge(msg.payload);
+        break;
+
+      case "STORAGE_CLEARED":
+        onStorageCleared();
+        break;
+
+      case "LOAD_PROGRESS":
+        handleProgress(msg.payload);
+        break;
+
+      case "LOAD_SUCCESS":
+        onModelLoadSuccess(msg.payload.voices);
+        break;
+
+      case "LOAD_ERROR":
+        onModelLoadError(msg.payload.error);
+        break;
+
+      case "SYNTHESIS_SUCCESS": {
+        const pending = pendingRequests.get(msg.payload.id);
+        if (pending) {
+          pendingRequests.delete(msg.payload.id);
+          pending.resolve(msg.payload);
+        }
+        break;
+      }
+
+      case "SYNTHESIS_ERROR": {
+        const pending = pendingRequests.get(msg.payload.id);
+        if (pending) {
+          pendingRequests.delete(msg.payload.id);
+          pending.reject(new Error(msg.payload.error));
+        }
+        break;
+      }
+    }
+  };
+
+  return ttsWorker;
+}
+
+// Callbacks for Model Lifecycle
+let onModelLoadSuccess = (_voices: VoiceConfig[]): void => {
+  isWorkerLoading = false;
+  isWorkerReady = true;
+
+  const selectedDevice = deviceSelect.value;
+  const [device] = selectedDevice.split("_");
+
+  statusDot.className = "status-indicator status-ready";
+  statusText.textContent = `Kokoro 82M Ready (${device.toUpperCase()})`;
+  loadModelBtn.innerHTML = `<span>Model Active</span>`;
+  loadModelBtn.classList.remove("btn-primary");
+  loadModelBtn.classList.add("btn-secondary");
+  loadModelBtn.disabled = false;
+
+  setTimeout(() => {
+    progressBarContainer.style.display = "none";
+  }, 1000);
+
+  // Refresh storage info
+  getWorker().postMessage({ type: "CHECK_STORAGE" });
+};
+
+let onModelLoadError = (errorMsg: string): void => {
+  isWorkerLoading = false;
+  isWorkerReady = false;
+
+  console.error("Failed to load Kokoro model in worker:", errorMsg);
+  statusDot.className = "status-indicator status-offline";
+  statusText.textContent = "Load Failed";
+  loadModelBtn.disabled = false;
+  progressLabel.textContent = `Error: ${errorMsg}`;
+  alert(
+    `Failed to load model: ${errorMsg}\nIf using WebGPU, ensure WebGPU is supported in your browser or switch to WASM.`
+  );
+};
+
 // Initialize UI
 function init(): void {
-  renderVoiceOptions();
+  renderVoiceOptions(KOKORO_VOICES);
   renderCategoryTabs();
   renderPresetList();
   selectPreset(KOREAN_SENTENCE_PRESETS[0].items[0]);
   setupEventListeners();
   updatePhoneticPreview();
-  updateStorageBadge();
+
+  // Query initial cache storage status via worker
+  getWorker().postMessage({ type: "CHECK_STORAGE" });
 }
 
 // Render Voices with optgroups
-function renderVoiceOptions(): void {
-  const voices = speaker.getVoices();
+function renderVoiceOptions(voices: VoiceConfig[]): void {
   const groups: Record<string, VoiceConfig[]> = {};
   for (const v of voices) {
     const groupName = v.group || "Other";
@@ -115,8 +216,7 @@ function renderVoiceOptions(): void {
 }
 
 function updateVoiceDescription(): void {
-  const voices = speaker.getVoices();
-  const selected = voices.find((v) => v.id === voiceSelect.value);
+  const selected = KOKORO_VOICES.find((v) => v.id === voiceSelect.value);
   if (selected) {
     voiceDesc.textContent = `${selected.name}: ${selected.traits}`;
   }
@@ -170,14 +270,14 @@ function updatePhoneticPreview(): void {
   }
 
   const pronunciation = koreanToPronunciation(text);
-  const converted = speaker.textToIpa(text);
+  const converted = convertKoreanToSpeechText(text);
   phoneticPronunciationText.textContent = `[${pronunciation}]`;
   phoneticPreviewText.textContent = converted;
   manualPhonemeInput.value = converted;
 }
 
 function setupEventListeners(): void {
-  loadModelBtn.addEventListener("click", loadModel);
+  loadModelBtn.addEventListener("click", () => loadModel());
 
   categoryTabs.addEventListener("click", (e) => {
     const btn = (e.target as HTMLElement).closest(".category-tab-btn") as HTMLElement | null;
@@ -249,8 +349,7 @@ function setupEventListeners(): void {
 }
 
 // Storage Status Monitoring
-async function updateStorageBadge(): Promise<StorageInfo> {
-  const info = await speaker.getStorageInfo();
+function renderStorageBadge(info: StorageInfo): void {
   if (info.isCached && info.modelSizeBytes > 0) {
     storageText.textContent = `Storage: ${info.modelSizeFormatted} (Offline Cached)`;
     clearCacheBtn.style.display = "inline-flex";
@@ -258,11 +357,10 @@ async function updateStorageBadge(): Promise<StorageInfo> {
     storageText.textContent = "Storage: None (On-demand)";
     clearCacheBtn.style.display = "none";
   }
-  return info;
 }
 
 // Handle Cache Deletion
-async function handleClearCache(): Promise<void> {
+function handleClearCache(): void {
   const confirmed = confirm(
     "Delete cached Kokoro model files (~86 MB)?\n\nThis will free up browser storage. Subsequent speech generation will re-download the model from CDN."
   );
@@ -271,8 +369,10 @@ async function handleClearCache(): Promise<void> {
   clearCacheBtn.disabled = true;
   storageText.textContent = "Deleting cache...";
 
-  await speaker.clearStorage();
+  getWorker().postMessage({ type: "CLEAR_STORAGE" });
+}
 
+function onStorageCleared(): void {
   statusDot.className = "status-indicator status-offline";
   statusText.textContent = "Model Not Loaded";
   loadModelBtn.disabled = false;
@@ -281,17 +381,15 @@ async function handleClearCache(): Promise<void> {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
     <span>Load Model (82M WASM)</span>
   `;
-  generateBtn.disabled = true;
-
   clearCacheBtn.disabled = false;
-  await updateStorageBadge();
+  getWorker().postMessage({ type: "CHECK_STORAGE" });
 }
 
-// Load Model (Delegates to KoreanSpeaker)
-async function loadModel(): Promise<void> {
-  if (isModelLoading || speaker.isLoaded()) return;
+// Load Model (Delegates to Worker)
+function loadModel(): Promise<void> {
+  if (isWorkerLoading || isWorkerReady) return Promise.resolve();
 
-  isModelLoading = true;
+  isWorkerLoading = true;
   loadModelBtn.disabled = true;
   statusDot.className = "status-indicator status-loading";
   statusText.textContent = "Loading Model & WASM...";
@@ -302,37 +400,28 @@ async function loadModel(): Promise<void> {
   const selectedDevice = deviceSelect.value;
   const [device, dtype] = selectedDevice.split("_");
 
-  try {
-    progressLabel.textContent = `Loading Kokoro-82M (${dtype.toUpperCase()}) for ${device.toUpperCase()}...`;
+  progressLabel.textContent = `Loading Kokoro-82M (${dtype.toUpperCase()}) for ${device.toUpperCase()}...`;
 
-    await speaker.load({
-      dtype: dtype as any,
-      device: (device === "webgpu" ? "webgpu" : "wasm") as any,
-      progressCallback: handleProgress,
+  return new Promise<void>((resolve) => {
+    const worker = getWorker();
+    const prevOnSuccess = onModelLoadSuccess;
+    const prevOnError = onModelLoadError;
+
+    onModelLoadSuccess = (voices) => {
+      prevOnSuccess(voices);
+      resolve();
+    };
+
+    onModelLoadError = (err) => {
+      prevOnError(err);
+      resolve();
+    };
+
+    worker.postMessage({
+      type: "LOAD_MODEL",
+      payload: { dtype, device },
     });
-
-    statusDot.className = "status-indicator status-ready";
-    statusText.textContent = `Kokoro 82M Ready (${device.toUpperCase()})`;
-    loadModelBtn.innerHTML = `<span>Model Active</span>`;
-    loadModelBtn.classList.remove("btn-primary");
-    loadModelBtn.classList.add("btn-secondary");
-
-    setTimeout(() => {
-      progressBarContainer.style.display = "none";
-    }, 1000);
-
-    // Refresh storage usage display after successful model download
-    await updateStorageBadge();
-  } catch (err: any) {
-    console.error("Failed to load Kokoro model:", err);
-    statusDot.className = "status-indicator status-offline";
-    statusText.textContent = "Load Failed";
-    loadModelBtn.disabled = false;
-    progressLabel.textContent = `Error: ${err.message}`;
-    alert(`Failed to load model: ${err.message}\nIf using WebGPU, ensure WebGPU is supported in your browser or switch to WASM.`);
-  } finally {
-    isModelLoading = false;
-  }
+  });
 }
 
 function handleProgress(p: SpeakerProgress): void {
@@ -349,13 +438,8 @@ function handleProgress(p: SpeakerProgress): void {
   }
 }
 
-// Generate Speech (Delegates to KoreanSpeaker)
+// Generate Speech (Offloaded to Web Worker — UI never freezes)
 async function generateSpeech(): Promise<void> {
-  if (!speaker.isLoaded()) {
-    await loadModel();
-    if (!speaker.isLoaded()) return;
-  }
-
   const koreanText = koreanInput.value.trim();
   if (!koreanText) {
     alert("Please enter or select a Korean sentence to test.");
@@ -374,6 +458,7 @@ async function generateSpeech(): Promise<void> {
   const voiceId = voiceSelect.value;
   const speed = parseFloat(speedRange.value);
 
+  // Instantly reflect loading state in UI
   generateBtn.disabled = true;
   genSpinner.style.display = "inline-block";
   genIcon.style.display = "none";
@@ -382,15 +467,43 @@ async function generateSpeech(): Promise<void> {
   stopAudio();
 
   try {
-    const input = isManualPhonemeEditing
-      ? { ipa: speechPayload, voice: voiceId, speed }
-      : { text: speechPayload, voice: voiceId, speed };
+    if (!isWorkerReady) {
+      await loadModel();
+      if (!isWorkerReady) return;
+    }
 
-    const result = await speaker.synthesize(input);
+    const reqId = String(++requestIdCounter);
+    const worker = getWorker();
 
-    currentAudioBuffer = result.audio;
+    const responsePromise = new Promise<{
+      id: string;
+      audio: ArrayBuffer;
+      sampleRate: number;
+      durationSec: number;
+      genTimeMs: number;
+      rtf: number;
+      ipa: string;
+    }>((resolve, reject) => {
+      pendingRequests.set(reqId, { resolve, reject });
+    });
+
+    worker.postMessage({
+      type: "SYNTHESIZE",
+      payload: {
+        id: reqId,
+        text: isManualPhonemeEditing ? undefined : speechPayload,
+        ipa: isManualPhonemeEditing ? speechPayload : undefined,
+        voice: voiceId,
+        speed,
+      },
+    });
+
+    const result = await responsePromise;
+    const audioData = new Float32Array(result.audio);
+
+    currentAudioBuffer = audioData;
     currentAudioDuration = result.durationSec;
-    currentWavBlob = result.toWavBlob();
+    currentWavBlob = createWavBlob(audioData, result.sampleRate);
 
     // Update Player & Visualizer UI
     metricGenTime.textContent = `${result.genTimeMs}ms`;
@@ -399,7 +512,7 @@ async function generateSpeech(): Promise<void> {
     audioMetrics.style.display = "inline-flex";
 
     visualizerOverlay.style.display = "none";
-    visualizer.drawWaveformStatic(result.audio);
+    visualizer.drawWaveformStatic(audioData);
 
     playBtn.disabled = false;
     seekSlider.disabled = false;
@@ -462,7 +575,7 @@ function playAudio(startOffset: number = 0): void {
   activeAudioSource.onended = () => {
     if (isPlaying) {
       stopAudio();
-      visualizer.drawWaveformStatic(currentAudioBuffer);
+      visualizer.drawWaveformStatic(currentAudioBuffer!);
     }
   };
 
