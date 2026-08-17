@@ -3,7 +3,7 @@
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-blue?style=flat-square&logo=github)](https://dyoo.github.io/korean-tts/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
 
-A lightweight, zero-backend WebAssembly (WASM) and WebGPU speech synthesis engine and testing playground for running **Kokoro-82M TTS** on Korean sentences.
+A lightweight, zero-backend WebAssembly (WASM) and WebGPU speech synthesis engine and testing playground for running [**Kokoro-82M TTS**](https://huggingface.co/hexgrad/Kokoro-82M) on Korean sentences.
 
 🎮 **Live Interactive Demo:** [https://dyoo.github.io/korean-tts/](https://dyoo.github.io/korean-tts/)
 
@@ -258,9 +258,9 @@ Converts the assimilated syllable tokens into accurate International Phonetic Al
 
 ---
 
-## Kokoro-82M 115-Token Phoneme Architecture & IPA Compatibility
+## [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) 115-Token Phoneme Architecture & IPA Compatibility
 
-Kokoro-82M is a neural Text-to-Speech model with an internal 115-token phoneme vocabulary (comprising ASCII letters, selected IPA extensions, punctuation, and Japanese/Chinese phonetic tokens). Unlike standard NLP tokenizers with thousands of subwords, Kokoro processes text strictly at the phoneme level.
+[**Kokoro-82M**](https://huggingface.co/hexgrad/Kokoro-82M) is a neural Text-to-Speech model with an internal 115-token phoneme vocabulary (comprising ASCII letters, selected IPA extensions, punctuation, and Japanese/Chinese phonetic tokens). Unlike standard NLP tokenizers with thousands of subwords, Kokoro processes text strictly at the phoneme level.
 
 Characters not present in Kokoro's 115-token vocabulary are **silently dropped by the tokenizer**. Understanding this mapping is essential for natural Korean synthesis.
 
@@ -389,6 +389,8 @@ npm run build:demo
 
 ## References & Standards
 
+- **[Kokoro-82M (hexgrad / Hugging Face)](https://huggingface.co/hexgrad/Kokoro-82M)**: Open-weight 82M parameter multi-lingual neural TTS model.
+- **[Kokoro-82M-v1.0-ONNX (onnx-community)](https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX)**: WebAssembly / WebGPU ONNX weights for in-browser client-side inference.
 - **[국립국어원 표준어 규정 — 제2부 표준 발음법 (Wikisource Full Text)](https://ko.wikisource.org/wiki/%ED%91%9C%EC%A4%80%EC%96%B4_%EA%B7%9C%EC%A0%95#%EC%A0%9C2%EB%B6%80_%ED%91%9C%EC%A4%80_%EB%B0%9C%EC%9D%8C%EB%B2%95)**: Complete official statutory text of the Standard Korean Pronunciation Rules (Articles 1–30, covering liaison, palatalization, aspiration, nasalization, liquid assimilation, tensification, and coda reduction).
 - **[National Institute of Korean Language Portal (국립국어원 한국어 어문 규범)](https://kornorms.korean.go.kr/regltn/regltnView.do?regltn_code=0002)**: Official NIKL regulations and commentary.
 - **[Wikipedia: Korean Phonology](https://en.wikipedia.org/wiki/Korean_phonology)**: Comprehensive linguistic overview of the sound system of modern Korean.
