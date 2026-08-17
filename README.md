@@ -395,6 +395,12 @@ npm run build:demo
 
 ---
 
+## Development & Attribution
+
+This project and its Korean phonology G2P engine were designed and pair-programmed by **Danny Yoo** in collaboration with **Antigravity** (Google DeepMind).
+
+---
+
 ## License
 
 This project is licensed under the **MIT License**. See [`LICENSE`](LICENSE) for details.
