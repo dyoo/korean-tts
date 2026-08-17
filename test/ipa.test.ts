@@ -43,9 +43,9 @@ describe("Hangul to IPA Conversion (음소 변환 및 Kokoro IPA)", () => {
       assert.equal(koreanToIpa("파"), "pʰa");
       assert.equal(koreanToIpa("사"), "sa");
       assert.equal(koreanToIpa("싸"), "s͈a");
-      assert.equal(koreanToIpa("자"), "t͡ɕa");
-      assert.equal(koreanToIpa("짜"), "t͡ɕ͈a");
-      assert.equal(koreanToIpa("차"), "t͡ɕʰa");
+      assert.equal(koreanToIpa("자"), "ʨa");
+      assert.equal(koreanToIpa("짜"), "ʨ͈a");
+      assert.equal(koreanToIpa("차"), "ʨʰa");
     });
   });
 
@@ -60,14 +60,14 @@ describe("Hangul to IPA Conversion (음소 변환 및 Kokoro IPA)", () => {
       assert.equal(ipa, "kuk̚p͈ap̚");
     });
 
-    it("should transcribe '굳이' with palatalization (ㄷ -> ㅈ)", () => {
+    it("should transcribe '굳이' with palatalization (ㄷ -> ㅈ -> ʥ)", () => {
       const ipa = koreanToIpa("굳이");
-      assert.equal(ipa, "kud͡ʑi");
+      assert.equal(ipa, "kuʥi");
     });
 
     it("should transcribe '좋다' with aspiration (ㅎ+ㄷ -> ㅌ)", () => {
       const ipa = koreanToIpa("좋다");
-      assert.equal(ipa, "t͡ɕotʰa");
+      assert.equal(ipa, "ʨotʰa");
     });
 
     it("should transcribe '신라' with lateral gemination (ll) and palatalized (ɕ)", () => {
@@ -80,19 +80,27 @@ describe("Hangul to IPA Conversion (음소 변환 및 Kokoro IPA)", () => {
       assert.equal(ipa, "ɕiɡan");
     });
 
-    it("should transcribe '아버지' with intervocalic voiced (b) and (d͡ʑ)", () => {
+    it("should transcribe '아버지' with intervocalic voiced (b) and (ʥ)", () => {
       const ipa = koreanToIpa("아버지");
-      assert.equal(ipa, "abʌd͡ʑi");
+      assert.equal(ipa, "abʌʥi");
     });
 
     it("should transcribe '친구' with post-nasal voiced (ɡ)", () => {
       const ipa = koreanToIpa("친구");
-      assert.equal(ipa, "t͡ɕʰinɡu");
+      assert.equal(ipa, "ʨʰinɡu");
     });
 
     it("should transcribe '국립' with liquid nasalization (ㄱ+ㄹ -> ㅇ+ㄴ)", () => {
       const ipa = koreanToIpa("국립");
       assert.equal(ipa, "kuŋnip̚");
+    });
+
+    it("should correctly transcribe issue #1 words (휴지, 내일, 타조, 초코, 된장)", () => {
+      assert.equal(koreanToIpa("휴지"), "hjuʥi");
+      assert.equal(koreanToIpa("내일"), "nɛil");
+      assert.equal(koreanToIpa("타조"), "tʰaʥo");
+      assert.equal(koreanToIpa("초코"), "ʨʰokʰo");
+      assert.equal(koreanToIpa("된장"), "twenʥaŋ");
     });
   });
 

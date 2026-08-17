@@ -47,7 +47,7 @@ export const JUNG_LIST: readonly string[] = ["ㅏ", "ㅐ", "ㅑ", "ㅒ", "ㅓ", 
 export const JONG_LIST: readonly string[] = ["", "ㄱ", "ㄲ", "ㄳ", "ㄴ", "ㄵ", "ㄶ", "ㄷ", "ㄹ", "ㄺ", "ㄻ", "ㄼ", "ㄽ", "ㄾ", "ㄿ", "ㅀ", "ㅁ", "ㅂ", "ㅄ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
 
 // Pure IPA Phonetic mappings (avoids English diphthongization & preserves Korean monophthongs)
-export const CHO_IPA: readonly string[] = ["k", "k͈", "n", "t", "t͈", "ɾ", "m", "p", "p͈", "s", "s͈", "", "t͡ɕ", "t͡ɕ͈", "t͡ɕʰ", "kʰ", "tʰ", "pʰ", "h"];
+export const CHO_IPA: readonly string[] = ["k", "k͈", "n", "t", "t͈", "ɾ", "m", "p", "p͈", "s", "s͈", "", "ʨ", "ʨ͈", "ʨʰ", "kʰ", "tʰ", "pʰ", "h"];
 export const JUNG_IPA: readonly string[] = ["a", "ɛ", "ja", "jɛ", "ʌ", "e", "jʌ", "je", "o", "wa", "wɛ", "we", "jo", "u", "wʌ", "we", "ɥi", "ju", "ɯ", "ɰi", "i"];
 export const JONG_IPA: readonly string[] = ["", "k̚", "k̚", "k̚", "n", "n", "n", "t̚", "l", "k̚", "m", "l", "l", "l", "p̚", "l", "m", "p̚", "p̚", "t̚", "t̚", "ŋ", "t̚", "t̚", "k̚", "t̚", "p̚", "t̚"];
 
@@ -681,7 +681,7 @@ export function koreanToPronunciation(inputText: string): string {
 
 /**
  * Converts Korean Hangul text into normalized, phonetically assimilated IPA monophthongs.
- * Features allophonic voicing of plain stops (ɡ, d, b, d͡ʑ), palatalization (ɕ, ɕ͈),
+ * Features allophonic voicing of plain stops (ɡ, d, b, ʥ), palatalization (ɕ, ɕ͈),
  * and lateral gemination (ll).
  */
 export function convertKoreanToSpeechText(inputText: string): string {
@@ -738,7 +738,7 @@ export function convertKoreanToSpeechText(inputText: string): string {
         if (s.choIdx === 0) choStr = "ɡ";        // ㄱ -> ɡ
         else if (s.choIdx === 3) choStr = "d";   // ㄷ -> d
         else if (s.choIdx === 7) choStr = "b";   // ㅂ -> b
-        else if (s.choIdx === 12) choStr = "d͡ʑ"; // ㅈ -> d͡ʑ
+        else if (s.choIdx === 12) choStr = "ʥ";  // ㅈ -> ʥ
       }
 
       const jungStr = JUNG_IPA[s.jungIdx];

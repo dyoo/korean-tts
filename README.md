@@ -163,7 +163,7 @@ The speech synthesis pipeline converts raw Korean text into phonetically transcr
 └────────────┬────────────┘
              │ 4. Allophonic Kokoro IPA Transcription
 ┌────────────▼────────────┐
-│       Output IPA        │  "kuk̚p͈ap̚ tu ɡe t͡ɕusejo! oɕip̚ pʰʌsɛntʰɯ haɾindwenajo?"
+│       Output IPA        │  "kuk̚p͈ap̚ tu ɡe ʨusejo! oɕip̚ pʰʌsɛntʰɯ haɾindwenajo?"
 └─────────────────────────┘
 ```
 
@@ -235,12 +235,12 @@ Converts the assimilated syllable tokens into accurate International Phonetic Al
    - `ㅅ, ㅆ` preceding `/i/` or `/j/` glides are transcribed as alveolo-palatal `[ɕ, ɕ͈]`:
      - `시간` → `ɕiɡan` (instead of `sikan`)
      - `신라` → `ɕilla`
-     - `시작` → `ɕid͡ʑak̚`
+     - `시작` → `ɕiʥak̚`
      - `씨앗` → `ɕ͈iat̚`
-2. **Intervocalic & Post-Sonorant Voicing (`[ɡ, d, b, d͡ʑ]`)**:
-   - Plain stops (`ㄱ, ㄷ, ㅂ, ㅈ`) become voiced between sonorants (vowels and `ㄴ, ㄹ, ㅁ, ㅇ`):
-     - `아버지` → `abʌd͡ʑi`
-     - `친구` → `t͡ɕʰinɡu`
+2. **Intervocalic & Post-Sonorant Voicing (`[ɡ, d, b, ʥ]`)**:
+   - Plain stops and affricates (`ㄱ, ㄷ, ㅂ, ㅈ`) become voiced between sonorants (vowels and `ㄴ, ㄹ, ㅁ, ㅇ`):
+     - `아버지` → `abʌʥi`
+     - `친구` → `ʨʰinɡu`
      - `한국어` → `hanɡuɡʌ`
      - `감사합니다` → `kamsahamnida`
 3. **Lateral Gemination (`[ll]`)**:
@@ -252,9 +252,100 @@ Converts the assimilated syllable tokens into accurate International Phonetic Al
 
 ---
 
+## Kokoro-82M 115-Token Phoneme Architecture & IPA Compatibility
+
+Kokoro-82M is a neural Text-to-Speech model with an internal 115-token phoneme vocabulary (comprising ASCII letters, selected IPA extensions, punctuation, and Japanese/Chinese phonetic tokens). Unlike standard NLP tokenizers with thousands of subwords, Kokoro processes text strictly at the phoneme level.
+
+Characters not present in Kokoro's 115-token vocabulary are **silently dropped by the tokenizer**. Understanding this mapping is essential for natural Korean synthesis.
+
+### Complete 115-Token Vocabulary Breakdown
+
+Kokoro's vocabulary consists of 115 valid tokens indexed across ID 0 to 177:
+
+| Category | Tokens | Count | Description |
+| :--- | :--- | :--- | :--- |
+| **Punctuation & Prosody** | `$`, `;`, `:`, `,`, `.`, `!`, `?`, `—`, `…`, `"`, `(`, `)`, `“`, `”`, ` ` (space) | 15 | Sentence boundaries, pauses, and dialogue quotes |
+| **ASCII Alphabet (Lower)** | `a`, `b`, `c`, `d`, `e`, `f`, `h`, `i`, `j`, `k`, `l`, `m`, `n`, `o`, `p`, `q`, `r`, `s`, `t`, `u`, `v`, `w`, `x`, `y`, `z` | 25 | Standard Latin phonemes (`g` is replaced by IPA `ɡ`) |
+| **ASCII Alphabet (Upper)** | `A`, `I`, `O`, `Q`, `S`, `T`, `W`, `Y` | 8 | Special prosodic & language tokens (`Q` = Japanese sokuon ッ) |
+| **Affricates & Ligatures** | `ʥ` (19), `ʨ` (21), `ʦ` (20), `ʣ` (18), `ʧ` (133), `ʤ` (82), `ꭧ` (23) | 7 | Dedicated alveolo-palatal, dental, and post-alveolar affricates |
+| **Vowels (IPA Extensions)** | `ɑ`, `ɐ`, `ɒ`, `æ`, `ɔ`, `ə`, `ɚ`, `ɛ`, `ɜ`, `ɨ`, `ɪ`, `ɯ`, `ø`, `œ`, `ʊ`, `ʌ`, `ɤ`, `ᵻ` | 18 | Monophthongs, central vowels, and open/close variants |
+| **Consonants (IPA Extensions)** | `ɕ`, `ç`, `ɖ`, `ð`, `ɟ`, `ɡ`, `ɥ`, `ʝ`, `ɰ`, `ŋ`, `ɳ`, `ɲ`, `ɴ`, `ɸ`, `θ`, `ɹ`, `ɾ`, `ɻ`, `ʁ`, `ɽ`, `ʂ`, `ʃ`, `ʈ`, `ʋ`, `ɣ`, `χ`, `ʎ`, `ʒ`, `ʔ` | 29 | Fricatives, nasals, retroflex, liquids, glottal stop |
+| **Diacritics & Modifiers** | `̃` (nasalization), `ᵝ`, `ᵊ`, `ˈ` (primary stress), `ˌ` (secondary stress), `ː` (length), `ʰ` (aspiration), `ʲ` (palatalization) | 8 | Phoneme modifiers |
+| **Tonal Contours** | `↓` (downstep / 3rd tone), `→` (level / 1st tone), `↗` (rising / 2nd tone), `↘` (falling / 4th tone) | 4 | Asian tonal pitch inflections |
+
+---
+
+### Korean Hangul to Kokoro IPA Phoneme Mapping
+
+| Korean Grapheme | Standard Linguistic IPA | Kokoro Token(s) | Status in Vocab | Notes & Acoustic Treatment |
+| :--- | :--- | :--- | :--- | :--- |
+| **ㄱ (Initial)** | `[k]` | `k` | Native (ID 53) | Voiceless velar stop |
+| **ㄱ (Voiced Intervocalic)** | `[ɡ]` | `ɡ` | Native (ID 92) | Voiced velar stop between vowels/sonorants |
+| **ㄲ (Tense)** | `[k͈]` | `k` / `k͈` | Diacritic dropped | `\u0348` stripped by tokenizer; synthesized as unvoiced stop |
+| **ㅋ (Aspirated)** | `[kʰ]` | `kʰ` | Native (`k` + `ʰ`) | Aspirated velar stop (IDs 53 + 162) |
+| **ㄷ (Initial)** | `[t]` | `t` | Native (ID 62) | Voiceless alveolar stop |
+| **ㄷ (Voiced Intervocalic)** | `[d]` | `d` | Native (ID 46) | Voiced alveolar stop |
+| **ㄸ (Tense)** | `[t͈]` | `t` / `t͈` | Diacritic dropped | `\u0348` stripped by tokenizer |
+| **ㅌ (Aspirated)** | `[tʰ]` | `tʰ` | Native (`t` + `ʰ`) | Aspirated alveolar stop (IDs 62 + 162) |
+| **ㅂ (Initial)** | `[p]` | `p` | Native (ID 58) | Voiceless bilabial stop |
+| **ㅂ (Voiced Intervocalic)** | `[b]` | `b` | Native (ID 44) | Voiced bilabial stop |
+| **ㅃ (Tense)** | `[p͈]` | `p` / `p͈` | Diacritic dropped | `\u0348` stripped by tokenizer |
+| **ㅍ (Aspirated)** | `[pʰ]` | `pʰ` | Native (`p` + `ʰ`) | Aspirated bilabial stop (IDs 58 + 162) |
+| **ㅈ (Initial / Plain)** | `[t͡ɕ]` | `ʨ` | Native (ID 21) | Mapped to Kokoro's native voiceless alveolo-palatal affricate |
+| **ㅈ (Voiced Intervocalic)** | `[d͡ʑ]` | `ʥ` | Native (ID 19) | Mapped to Kokoro's native voiced alveolo-palatal affricate |
+| **ㅉ (Tense)** | `[t͡ɕ͈]` | `ʨ͈` $\rightarrow$ `ʨ` | Diacritic dropped | `\u0348` stripped by tokenizer |
+| **ㅊ (Aspirated)** | `[t͡ɕʰ]` | `ʨʰ` | Native (`ʨ` + `ʰ`) | Single affricate + aspiration modifier (IDs 21 + 162) |
+| **ㅅ (Plain)** | `[s]` | `s` | Native (ID 61) | Alveolar fricative before /a, ʌ, o, u, ɯ/ |
+| **ㅅ (Palatalized /i, j/)** | `[ɕ]` | `ɕ` | Native (ID 77) | Alveolo-palatal fricative before /i, j/ (e.g. `시간` → `ɕiɡan`) |
+| **ㅆ (Tense)** | `[s͈]` | `s` / `s͈` | Diacritic dropped | `\u0348` stripped by tokenizer |
+| **ㅆ (Palatalized /i, j/)** | `[ɕ͈]` | `ɕ` / `ɕ͈` | Diacritic dropped | `\u0348` stripped by tokenizer |
+| **ㅎ (Glottal)** | `[h]` | `h` | Native (ID 50) | Voiceless glottal fricative |
+| **ㄴ (Alveolar Nasal)** | `[n]` | `n` | Native (ID 56) | Alveolar nasal |
+| **ㅁ (Bilabial Nasal)** | `[m]` | `m` | Native (ID 55) | Bilabial nasal |
+| **ㅇ (Velar Nasal Coda)** | `[ŋ]` | `ŋ` | Native (ID 112) | Velar nasal coda (e.g. `강` → `kaŋ`) |
+| **ㄹ (Flap Onset)** | `[ɾ]` | `ɾ` | Native (ID 125) | Alveolar tap/flap (e.g. `바람` → `paɾam`) |
+| **ㄹ (Lateral Coda/Geminate)** | `[l]` / `[ll]` | `l` / `ll` | Native (ID 54) | Alveolar lateral (e.g. `신라` → `ɕilla`) |
+| **Unreleased Codas (ㄱ, ㄷ, ㅂ)** | `[k̚, t̚, p̚]` | `k, t, p` | Diacritic dropped | `\u031a` stripped by tokenizer; natural coda acoustic decay |
+| **ㅏ, ㅓ, ㅗ, ㅜ, ㅡ, ㅣ** | `[a, ʌ, o, u, ɯ, i]` | `a, ʌ, o, u, ɯ, i` | All Native | Exact 1:1 monophthong tokens in Kokoro |
+| **ㅐ, ㅔ** | `[ɛ], [e]` | `ɛ, e` | All Native | `ɛ` (ID 86) and `e` (ID 47) both supported |
+| **ㅚ, ㅟ, ㅢ** | `[we], [ɥi], [ɰi]` | `we, ɥi, ɰi` | All Native | `ɰ` (ID 111) and `ɥ` (ID 99) natively supported |
+| **Glides (ㅑ, ㅕ, ㅛ, ㅠ, ㅘ, ㅝ, ...)** | `[ja, jʌ, jo, ju, wa, wʌ]` | `ja, jʌ, jo, ju, wa, wʌ` | All Native | Combined glide + vowel sequences |
+
+---
+
+### Key Phonetic Gaps & Solutions
+
+#### 1. The Intervocalic Affricate Gap (`d͡ʑ` $\rightarrow$ `d` Regression)
+* **The Problem**: In standard linguistic literature, the voiced intervocalic allophone of `ㅈ` is written as `[d͡ʑ]`. However, neither the tie bar `\u0361` (`͡`) nor the curly-tail z `\u0291` (`ʑ`) exists in Kokoro's 115-token vocabulary. When `d͡ʑ` was passed to the tokenizer, it silently stripped `͡` and `ʑ`, leaving only `d` (alveolar plosive /d/).
+* **Result**:
+  - `휴지` (hyu-ji) became `['h', 'j', 'u', 'd', 'i']` $\rightarrow$ synthesized as **"휴디" (hyudi)**.
+  - `타조` (ta-jo) became `['t', 'ʰ', 'a', 'd', 'o']` $\rightarrow$ synthesized as **"타도" (tado)**.
+  - `된장` (doen-jang) became `['t', 'w', 'e', 'n', 'd', 'a', 'ŋ']` $\rightarrow$ synthesized as **"된당" (doendang)**.
+  - `아버지` (a-beo-ji) became `['a', 'b', 'ʌ', 'd', 'i']` $\rightarrow$ synthesized as **"아버디" (abeodi)**.
+* **The Solution**: Kokoro contains the dedicated CJK voiced alveolo-palatal affricate token **`ʥ` (Token 19)** (the same token used by Misaki for Japanese `ジ` and voiced affricates). Mapping voiced `ㅈ` to `ʥ` produces natural affricate voicing: `hjuʥi`, `tʰaʥo`, `twenʥaŋ`, `abʌʥi`.
+
+#### 2. The Aspirated Affricate Splitting Gap (`t͡ɕʰ` $\rightarrow$ `t ɕ ʰ`)
+* **The Problem**: `ㅊ` transcribed as `[t͡ɕʰ]` lost its tie bar in tokenization and split into three separate tokens: `t` (plosive) + `ɕ` (fricative) + `ʰ` (aspiration).
+* **Result**: The acoustic model generated an unnatural pause/drag across three separate phonemes (1.85s vs 1.38s for `초코`), sounding disjointed.
+* **The Solution**: Mapping `ㅊ` to **`ʨʰ` (Tokens 21 + 162)** leverages Kokoro's native voiceless alveolo-palatal affricate `ʨ` with aspiration `ʰ`, producing crisp, rapid articulation.
+
+#### 3. Tension / Glottalization Diacritic Gap (`\u0348` / `͈`)
+* **The Problem**: The IPA tension mark `\u0348` (`͈`) is not in Kokoro's vocabulary.
+* **Acoustic Behavior**: When `k͈a` (까) or `s͈a` (싸) is passed, the tokenizer strips `͈` and feeds `k` / `s`. In Kokoro, Asian voice models (e.g. `zf_xiaobei`, `jf_nezumi`) naturally articulate unvoiced initial stops `k`, `t`, `p` with high vocal tract tension compared to intervocalic voiced stops `ɡ`, `d`, `b`, `ʥ`.
+
+#### 4. Unreleased Coda Diacritic Gap (`\u031a` / `̚`)
+* **The Problem**: The IPA unreleased stop mark `\u031a` (`̚` as in `k̚, t̚, p̚`) is not in Kokoro's vocabulary.
+* **Acoustic Behavior**: The tokenizer strips `̚` and tokens become `k`, `t`, `p`. Because these tokens reside in syllable coda position before a boundary or subsequent onset, Kokoro's acoustic model naturally decays them without release bursts.
+
+#### 5. Vowel Hiatus & Zero-Onset Syllable Transition (`내일`, `아이`, `오이`)
+* **The Problem**: When a vowel-final syllable is followed by an `ㅇ`-onset syllable (e.g. `내일` $\rightarrow$ `내` + `일` $\rightarrow$ `nɛil`), direct concatenation of `ɛ` + `i` without boundary markers causes multilingual acoustic models to fuse the vowels into a single English-like diphthong (e.g. pronouncing `내일` as the 1-syllable English word "nail" /neɪl/).
+* **Acoustic Behavior**: Standard Korean preserves syllable-timed rhythm across zero-onset boundaries. Retaining proper vowel definitions or inserting syllable separation markers maintains the two-syllable Korean cadence.
+
+---
+
 ## Unit Testing & Verification
 
-The engine is covered by **225 automated unit tests** across 22 suites:
+The engine is covered by **226 automated unit tests** across 22 suites:
 
 ```bash
 npm run test
