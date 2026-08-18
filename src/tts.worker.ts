@@ -1,4 +1,9 @@
-import { KoreanSpeaker, type SpeakerProgress } from "./korean-speaker";
+import {
+  KoreanSpeaker,
+  type SpeakerProgress,
+  type SynthesisProgressEvent,
+  type SynthesisTask,
+} from "./korean-speaker";
 import { KOKORO_VOICES, type VoiceConfig } from "./korean-engine";
 import { getModelStorageInfo, deleteModelCache, type StorageInfo } from "./storage-utils";
 
@@ -6,11 +11,12 @@ import { getModelStorageInfo, deleteModelCache, type StorageInfo } from "./stora
  * Dedicated Web Worker for Kokoro-82M TTS synthesis in the demo app.
  * Runs model downloading, WASM compilation, phoneme conversion, and ONNX neural network
  * inference completely off the main UI thread so that the browser interface remains
- * 100% responsive and animations (like the "Synthesizing..." spinner) run smoothly.
+ * 100% responsive and animations run smoothly.
  */
 
 let speaker: KoreanSpeaker | null = null;
 let isModelLoaded = false;
+const activeTasks = new Map<string, SynthesisTask>();
 
 export type WorkerRequest =
   | { type: "CHECK_STORAGE" }
@@ -25,6 +31,13 @@ export type WorkerRequest =
         voice?: string;
         speed?: number;
       };
+    }
+  | {
+      type: "CANCEL_SYNTHESIS";
+      payload?: {
+        id?: string;
+        reason?: string;
+      };
     };
 
 export type WorkerResponse =
@@ -33,6 +46,13 @@ export type WorkerResponse =
   | { type: "LOAD_PROGRESS"; payload: SpeakerProgress }
   | { type: "LOAD_SUCCESS"; payload: { voices: VoiceConfig[] } }
   | { type: "LOAD_ERROR"; payload: { error: string } }
+  | {
+      type: "SYNTHESIS_PROGRESS";
+      payload: {
+        id: string;
+        event: SynthesisProgressEvent;
+      };
+    }
   | {
       type: "SYNTHESIS_SUCCESS";
       payload: {
@@ -45,7 +65,14 @@ export type WorkerResponse =
         ipa: string;
       };
     }
-  | { type: "SYNTHESIS_ERROR"; payload: { id: string; error: string } };
+  | {
+      type: "SYNTHESIS_CANCELLED";
+      payload: {
+        id: string;
+        reason?: string;
+      };
+    }
+  | { type: "SYNTHESIS_ERROR"; payload: { id: string; error: string; isCancelled?: boolean } };
 
 function postResponse(msg: WorkerResponse, transfer?: Transferable[]): void {
   if (transfer && transfer.length > 0) {
@@ -83,6 +110,10 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
 
     case "CLEAR_STORAGE": {
       try {
+        if (speaker) {
+          speaker.cancelAll("Cache cleared");
+        }
+        activeTasks.clear();
         await deleteModelCache();
         speaker = null;
         isModelLoaded = false;
@@ -134,6 +165,36 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       break;
     }
 
+    case "CANCEL_SYNTHESIS": {
+      const targetId = msg.payload?.id;
+      const reason = msg.payload?.reason || "Cancelled by user";
+
+      if (targetId) {
+        const task = activeTasks.get(targetId);
+        if (task) {
+          task.cancel(reason);
+          activeTasks.delete(targetId);
+          postResponse({
+            type: "SYNTHESIS_CANCELLED",
+            payload: { id: targetId, reason },
+          });
+        }
+      } else {
+        if (speaker) {
+          speaker.cancelAll(reason);
+        }
+        for (const [id, task] of activeTasks.entries()) {
+          task.cancel(reason);
+          postResponse({
+            type: "SYNTHESIS_CANCELLED",
+            payload: { id, reason },
+          });
+        }
+        activeTasks.clear();
+      }
+      break;
+    }
+
     case "SYNTHESIZE": {
       const { id, text, ipa, voice, speed } = msg.payload;
       try {
@@ -145,7 +206,18 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
           ? { ipa, voice: voice || "jf_nezumi", speed: speed ?? 1.0 }
           : { text: text || "", voice: voice || "jf_nezumi", speed: speed ?? 1.0 };
 
-        const result = await speaker.synthesize(input);
+        const task = speaker.synthesize(input);
+        activeTasks.set(id, task);
+
+        task.onProgress((progressEvent) => {
+          postResponse({
+            type: "SYNTHESIS_PROGRESS",
+            payload: { id, event: progressEvent },
+          });
+        });
+
+        const result = await task.promise;
+        activeTasks.delete(id);
 
         // Copy audio Float32Array to independent transfer buffer
         const audioBuffer = result.audio.buffer.slice(
@@ -169,10 +241,19 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
           [audioBuffer]
         );
       } catch (err: any) {
-        postResponse({
-          type: "SYNTHESIS_ERROR",
-          payload: { id, error: err.message || "Synthesis failed" },
-        });
+        activeTasks.delete(id);
+        const isCancelled = err.isCancelled || err.name === "AbortError";
+        if (isCancelled) {
+          postResponse({
+            type: "SYNTHESIS_CANCELLED",
+            payload: { id, reason: err.message || "Synthesis was cancelled" },
+          });
+        } else {
+          postResponse({
+            type: "SYNTHESIS_ERROR",
+            payload: { id, error: err.message || "Synthesis failed", isCancelled: false },
+          });
+        }
       }
       break;
     }

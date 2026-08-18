@@ -158,12 +158,16 @@
               </div>
             </div>
 
-            <!-- Generate Button -->
+            <!-- Generate & Cancel Buttons -->
             <div class="generate-btn-row">
               <button id="generateBtn" class="btn btn-primary btn-lg generate-btn">
                 <span class="btn-spinner" id="genSpinner" style="display: none;"></span>
                 <svg id="genIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
                 <span id="genBtnText">Synthesize Speech (WASM)</span>
+              </button>
+              <button id="cancelBtn" class="btn btn-danger btn-lg cancel-btn" style="display: none;" title="Cancel ongoing speech synthesis">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                <span>Cancel</span>
               </button>
             </div>
           </section>

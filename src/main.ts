@@ -16,6 +16,7 @@ let ttsWorker: Worker | null = null;
 let isWorkerReady: boolean = false;
 let isWorkerLoading: boolean = false;
 let requestIdCounter: number = 0;
+let activeSynthesisReqId: string | null = null;
 const pendingRequests = new Map<
   string,
   {
@@ -66,6 +67,7 @@ const speedRange = document.getElementById("speedRange") as HTMLInputElement;
 const speedVal = document.getElementById("speedVal") as HTMLSpanElement;
 const deviceSelect = document.getElementById("deviceSelect") as HTMLSelectElement;
 const generateBtn = document.getElementById("generateBtn") as HTMLButtonElement;
+const cancelBtn = document.getElementById("cancelBtn") as HTMLButtonElement;
 const genBtnText = document.getElementById("genBtnText") as HTMLSpanElement;
 const genSpinner = document.getElementById("genSpinner") as HTMLSpanElement;
 const genIcon = document.getElementById("genIcon") as unknown as SVGElement;
@@ -117,6 +119,13 @@ function getWorker(): Worker {
         onModelLoadError(msg.payload.error);
         break;
 
+      case "SYNTHESIS_PROGRESS": {
+        if (activeSynthesisReqId === msg.payload.id && msg.payload.event.message) {
+          genBtnText.textContent = msg.payload.event.message;
+        }
+        break;
+      }
+
       case "SYNTHESIS_SUCCESS": {
         const pending = pendingRequests.get(msg.payload.id);
         if (pending) {
@@ -126,11 +135,25 @@ function getWorker(): Worker {
         break;
       }
 
+      case "SYNTHESIS_CANCELLED": {
+        const pending = pendingRequests.get(msg.payload.id);
+        if (pending) {
+          pendingRequests.delete(msg.payload.id);
+          const err = new Error(msg.payload.reason || "Synthesis was cancelled");
+          (err as any).name = "AbortError";
+          (err as any).isCancelled = true;
+          pending.reject(err);
+        }
+        break;
+      }
+
       case "SYNTHESIS_ERROR": {
         const pending = pendingRequests.get(msg.payload.id);
         if (pending) {
           pendingRequests.delete(msg.payload.id);
-          pending.reject(new Error(msg.payload.error));
+          const err = new Error(msg.payload.error);
+          (err as any).isCancelled = msg.payload.isCancelled;
+          pending.reject(err);
         }
         break;
       }
@@ -346,6 +369,24 @@ function setupEventListeners(): void {
 
   downloadWavBtn.addEventListener("click", downloadCurrentWav);
   clearCacheBtn.addEventListener("click", handleClearCache);
+  if (cancelBtn) {
+    cancelBtn.addEventListener("click", cancelSynthesis);
+  }
+}
+
+// Cancel Active Speech Synthesis
+function cancelSynthesis(): void {
+  if (!activeSynthesisReqId) return;
+
+  const worker = getWorker();
+  worker.postMessage({
+    type: "CANCEL_SYNTHESIS",
+    payload: { id: activeSynthesisReqId, reason: "Cancelled by user" },
+  });
+
+  activeSynthesisReqId = null;
+  genBtnText.textContent = "Cancelling...";
+  cancelBtn.disabled = true;
 }
 
 // Storage Status Monitoring
@@ -455,11 +496,18 @@ async function generateSpeech(): Promise<void> {
     return;
   }
 
+  // Cancel any prior in-flight synthesis before starting a new one
+  if (activeSynthesisReqId) {
+    cancelSynthesis();
+  }
+
   const voiceId = voiceSelect.value;
   const speed = parseFloat(speedRange.value);
 
-  // Instantly reflect loading state in UI
+  // Instantly reflect loading & cancellation state in UI
   generateBtn.disabled = true;
+  cancelBtn.style.display = "inline-flex";
+  cancelBtn.disabled = false;
   genSpinner.style.display = "inline-block";
   genIcon.style.display = "none";
   genBtnText.textContent = "Synthesizing...";
@@ -473,6 +521,7 @@ async function generateSpeech(): Promise<void> {
     }
 
     const reqId = String(++requestIdCounter);
+    activeSynthesisReqId = reqId;
     const worker = getWorker();
 
     const responsePromise = new Promise<{
@@ -499,6 +548,12 @@ async function generateSpeech(): Promise<void> {
     });
 
     const result = await responsePromise;
+
+    // Check if this result is still for the active request
+    if (activeSynthesisReqId !== reqId) {
+      return;
+    }
+
     const audioData = new Float32Array(result.audio);
 
     currentAudioBuffer = audioData;
@@ -523,10 +578,18 @@ async function generateSpeech(): Promise<void> {
 
     playAudio(0);
   } catch (err: any) {
-    console.error("Speech synthesis failed:", err);
-    alert(`Speech generation error: ${err.message}`);
+    if (err.isCancelled || err.name === "AbortError") {
+      // User cancelled synthesis — do not alert
+      console.log("Synthesis was cancelled by user.");
+    } else {
+      console.error("Speech synthesis failed:", err);
+      alert(`Speech generation error: ${err.message}`);
+    }
   } finally {
+    activeSynthesisReqId = null;
     generateBtn.disabled = false;
+    cancelBtn.style.display = "none";
+    cancelBtn.disabled = false;
     genSpinner.style.display = "none";
     genIcon.style.display = "inline-block";
     genBtnText.textContent = "Synthesize Speech (WASM)";

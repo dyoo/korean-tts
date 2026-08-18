@@ -4,14 +4,14 @@ import {
   convertKoreanToSpeechText,
   KOKORO_VOICES,
   type VoiceConfig,
-} from "./korean-engine";
-import { createWavBlob } from "./audio-utils";
+} from "./korean-engine.ts";
+import { createWavBlob } from "./audio-utils.ts";
 import {
   getModelStorageInfo,
   deleteModelCache,
   requestPersistentStorage,
   type StorageInfo,
-} from "./storage-utils";
+} from "./storage-utils.ts";
 
 export type { StorageInfo };
 
@@ -134,6 +134,200 @@ export interface SpeakerInitOptions {
 }
 
 /**
+ * All valid execution stages during speech synthesis.
+ */
+export type SynthesisProgressStage =
+  | "init"
+  | "loading-model"
+  | "converting-phonology"
+  | "tokenizing"
+  | "fetching-voice"
+  | "inferencing"
+  | "completed"
+  | "cancelled"
+  | "error";
+
+/**
+ * Progress event emitted during synthesis execution.
+ */
+export interface SynthesisProgressEvent {
+  stage: SynthesisProgressStage;
+  message?: string;
+  progress?: number;
+}
+
+/**
+ * Callback function to monitor stage-by-stage synthesis progress.
+ */
+export type SynthesisProgressCallback = (event: SynthesisProgressEvent) => void;
+
+/**
+ * Error thrown when speech synthesis is cancelled before completion.
+ */
+export class SynthesisCancelledError extends Error {
+  readonly isCancelled: boolean = true;
+
+  constructor(message: string = "Synthesis was cancelled") {
+    super(message);
+    this.name = "AbortError";
+    Object.setPrototypeOf(this, SynthesisCancelledError.prototype);
+  }
+}
+
+/**
+ * A structured, cancelable task handle returned by `speaker.synthesize(...)`.
+ *
+ * Implements `PromiseLike<SynthesisResult>` so it can be directly `await`ed or chained with `.then()`,
+ * while also exposing `.cancel()`, `.promise`, `.stage`, `.isCancelled`, `.isSettled`,
+ * `.cancelReason`, and `.onProgress(...)`.
+ */
+export interface SynthesisTask extends PromiseLike<SynthesisResult> {
+  /** The underlying Promise resolving to the SynthesisResult or rejecting on error/cancellation */
+  readonly promise: Promise<SynthesisResult>;
+
+  /** The current execution stage of synthesis */
+  readonly stage: SynthesisProgressStage;
+
+  /** True if synthesis was cancelled */
+  readonly isCancelled: boolean;
+
+  /** True if synthesis has finished (either completed, cancelled, or errored) */
+  readonly isSettled: boolean;
+
+  /** Cancellation reason if cancelled */
+  readonly cancelReason?: string;
+
+  /**
+   * Cancels the synthesis call.
+   * If synthesis is already completed or cancelled, this is a no-op.
+   * @param reason Optional cancellation reason description.
+   */
+  cancel(reason?: string): void;
+
+  /**
+   * Registers a progress listener callback for synthesis stage updates.
+   * Returns `this` for chaining.
+   */
+  onProgress(callback: SynthesisProgressCallback): this;
+
+  /** Standard Promise `then` handler */
+  then<TResult1 = SynthesisResult, TResult2 = never>(
+    onfulfilled?: ((value: SynthesisResult) => TResult1 | PromiseLike<TResult1>) | null,
+    onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null
+  ): Promise<TResult1 | TResult2>;
+
+  /** Standard Promise `catch` handler */
+  catch<TResult = never>(
+    onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | null
+  ): Promise<SynthesisResult | TResult>;
+
+  /** Standard Promise `finally` handler */
+  finally(onfinally?: (() => void) | null): Promise<SynthesisResult>;
+}
+
+/**
+ * Default internal implementation of `SynthesisTask`.
+ */
+export class DefaultSynthesisTask implements SynthesisTask {
+  private _stage: SynthesisProgressStage = "init";
+  private _isCancelled: boolean = false;
+  private _isSettled: boolean = false;
+  private _cancelReason?: string;
+  private _progressListeners: SynthesisProgressCallback[] = [];
+
+  readonly promise: Promise<SynthesisResult>;
+  private _resolve!: (value: SynthesisResult) => void;
+  private _reject!: (reason?: any) => void;
+
+  constructor(initialCallback?: SynthesisProgressCallback) {
+    if (initialCallback) {
+      this._progressListeners.push(initialCallback);
+    }
+
+    this.promise = new Promise<SynthesisResult>((resolve, reject) => {
+      this._resolve = resolve;
+      this._reject = reject;
+    });
+  }
+
+  get stage(): SynthesisProgressStage {
+    return this._stage;
+  }
+
+  get isCancelled(): boolean {
+    return this._isCancelled;
+  }
+
+  get isSettled(): boolean {
+    return this._isSettled;
+  }
+
+  get cancelReason(): string | undefined {
+    return this._cancelReason;
+  }
+
+  onProgress(callback: SynthesisProgressCallback): this {
+    this._progressListeners.push(callback);
+    return this;
+  }
+
+  _emitProgress(stage: SynthesisProgressStage, message?: string, progress?: number): void {
+    if (this._isSettled && stage !== "completed" && stage !== "cancelled" && stage !== "error") {
+      return;
+    }
+    this._stage = stage;
+    const event: SynthesisProgressEvent = { stage, message, progress };
+    for (const listener of this._progressListeners) {
+      try {
+        listener(event);
+      } catch (err) {
+        console.error("Error in synthesis progress listener:", err);
+      }
+    }
+  }
+
+  cancel(reason?: string): void {
+    if (this._isSettled) return;
+    this._isCancelled = true;
+    this._isSettled = true;
+    this._cancelReason = reason || "Synthesis was cancelled";
+    this._emitProgress("cancelled", this._cancelReason);
+    this._reject(new SynthesisCancelledError(this._cancelReason));
+  }
+
+  _complete(result: SynthesisResult): void {
+    if (this._isSettled) return;
+    this._isSettled = true;
+    this._emitProgress("completed", "Synthesis completed successfully", 1.0);
+    this._resolve(result);
+  }
+
+  _error(err: any): void {
+    if (this._isSettled) return;
+    this._isSettled = true;
+    this._emitProgress("error", err?.message || "Synthesis error");
+    this._reject(err);
+  }
+
+  then<TResult1 = SynthesisResult, TResult2 = never>(
+    onfulfilled?: ((value: SynthesisResult) => TResult1 | PromiseLike<TResult1>) | null,
+    onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null
+  ): Promise<TResult1 | TResult2> {
+    return this.promise.then(onfulfilled, onrejected);
+  }
+
+  catch<TResult = never>(
+    onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | null
+  ): Promise<SynthesisResult | TResult> {
+    return this.promise.catch(onrejected);
+  }
+
+  finally(onfinally?: (() => void) | null): Promise<SynthesisResult> {
+    return this.promise.finally(onfinally);
+  }
+}
+
+/**
  * Base synthesis options shared between text and IPA inputs.
  */
 export interface BaseSynthesisInput {
@@ -151,6 +345,11 @@ export interface BaseSynthesisInput {
    * @default 1.0
    */
   speed?: number;
+
+  /**
+   * Optional callback to receive stage-by-stage synthesis progress updates.
+   */
+  onProgress?: SynthesisProgressCallback;
 }
 
 /**
@@ -246,6 +445,8 @@ export class KoreanSpeaker {
   private device: "wasm" | "webgpu" = "wasm";
   private dtype: "q8" | "fp32" | "fp16" | "q4" = "q8";
   private isModelLoading: boolean = false;
+  private activeTasks = new Set<SynthesisTask>();
+  private inferenceQueue: Promise<void> = Promise.resolve();
 
   /**
    * Creates a new `KoreanSpeaker` instance.
@@ -389,81 +590,168 @@ export class KoreanSpeaker {
   }
 
   /**
+   * Returns a snapshot array of all currently active or queued synthesis tasks.
+   */
+  getActiveTasks(): SynthesisTask[] {
+    return Array.from(this.activeTasks);
+  }
+
+  /**
+   * Cancels the most recently initiated active synthesis task.
+   * @param reason Optional cancellation reason description.
+   */
+  cancelCurrent(reason?: string): void {
+    const tasks = Array.from(this.activeTasks);
+    if (tasks.length > 0) {
+      tasks[tasks.length - 1].cancel(reason);
+    }
+  }
+
+  /**
+   * Cancels all currently active and queued synthesis tasks.
+   * @param reason Optional cancellation reason description.
+   */
+  cancelAll(reason?: string): void {
+    for (const task of this.activeTasks) {
+      task.cancel(reason);
+    }
+    this.activeTasks.clear();
+  }
+
+  /**
    * Synthesizes Korean text or raw IPA phonemes into audio waveform with performance metrics.
+   * Returns a `SynthesisTask` handle that can be directly `await`ed or inspected for progress and cancelled.
    * Automatically loads the model on first call if not already loaded.
    *
    * @param input Synthesis configuration object with either `text` (Hangul) or `ipa` (raw IPA).
-   * @returns A `Promise` resolving to a `SynthesisResult` object containing audio and helper methods.
+   * @returns A `SynthesisTask` structured handle (PromiseLike) resolving to `SynthesisResult`.
    *
    * @example
    * ```typescript
-   * const result = await speaker.synthesize({
-   *   text: "안녕하세요! 반갑습니다.",
-   *   voice: "jf_nezumi",
-   *   speed: 1.0,
-   * });
-   * const wavBlob = result.toWavBlob();
+   * // 1. Direct await usage (backward compatible)
+   * const result = await speaker.synthesize({ text: "안녕하세요!" });
+   *
+   * // 2. Structured cancelable task usage
+   * const task = speaker.synthesize({ text: "긴 문장 합성 중..." });
+   * task.onProgress((e) => console.log(e.stage));
+   * // Cancel when needed:
+   * task.cancel();
    * ```
    */
-  async synthesize(input: SynthesisInput): Promise<SynthesisResult> {
-    if (!this.ttsInstance) {
-      await this.load();
-    }
+  synthesize(input: SynthesisInput): SynthesisTask {
+    const task = new DefaultSynthesisTask(input.onProgress);
+    this.activeTasks.add(task);
 
-    const voice = input.voice || "jf_nezumi";
-    const speed = input.speed ?? 1.0;
-    const ipa = "ipa" in input ? input.ipa : this.textToIpa(input.text);
-
-    if (!ipa.trim()) {
-      throw new Error("Phonetic payload is empty");
-    }
-
-    const startTime = performance.now();
-
-    // 1. Tokenize phonetic payload
-    const { input_ids } = (this.ttsInstance as any).tokenizer(ipa, {
-      truncation: true,
-    });
-
-    // 2. Fetch & slice voice embedding
-    const voiceTensor = await this.getVoiceVector(voice);
-    const numTokens = input_ids.dims.at(-1);
-    const sliceIndex = 256 * Math.min(Math.max(numTokens - 2, 0), 509);
-    const styleSlice = voiceTensor.slice(sliceIndex, sliceIndex + 256);
-
-    const modelInputs = {
-      input_ids: input_ids,
-      style: new Tensor("float32", styleSlice, [1, 256]),
-      speed: new Tensor("float32", [speed], [1]),
+    const cleanup = () => {
+      this.activeTasks.delete(task);
     };
 
-    // 3. Run neural inference
-    const { waveform } = await (this.ttsInstance as any).model(modelInputs);
-    const rawAudio = new RawAudio(waveform.data, 24000);
+    task.finally(cleanup).catch(() => {});
 
-    const elapsedMs = Math.round(performance.now() - startTime);
-    const audioData = rawAudio.audio as Float32Array;
-    const sampleRate = rawAudio.sampling_rate || 24000;
-    const durationSec = audioData.length / sampleRate;
-    const rtf = elapsedMs / 1000 / durationSec;
+    (async () => {
+      try {
+        if (task.isCancelled) return;
 
-    return {
-      audio: audioData,
-      sampleRate,
-      durationSec,
-      genTimeMs: elapsedMs,
-      rtf,
-      ipa,
-      voice,
-      speed,
-      toWavBlob: () => createWavBlob(audioData, sampleRate),
-      toAudioUrl: () => URL.createObjectURL(createWavBlob(audioData, sampleRate)),
-      createAudioElement: () => {
-        const blob = createWavBlob(audioData, sampleRate);
-        const url = URL.createObjectURL(blob);
-        return new Audio(url);
-      },
-    };
+        // 1. Ensure Model is Loaded
+        if (!this.ttsInstance) {
+          task._emitProgress("loading-model", "Loading Kokoro TTS model...", 0.1);
+          await this.load();
+          if (task.isCancelled) return;
+        }
+
+        const voice = input.voice || "jf_nezumi";
+        const speed = input.speed ?? 1.0;
+
+        // 2. Phonology Conversion
+        task._emitProgress("converting-phonology", "Converting Hangul to phonemes...", 0.25);
+        const ipa = "ipa" in input ? input.ipa : this.textToIpa(input.text);
+
+        if (task.isCancelled) return;
+
+        if (!ipa.trim()) {
+          throw new Error("Phonetic payload is empty");
+        }
+
+        const startTime = performance.now();
+
+        if (task.isCancelled || !this.ttsInstance) return;
+
+        // 3. Tokenize phonetic payload
+        task._emitProgress("tokenizing", "Tokenizing phonetic payload...", 0.4);
+        const { input_ids } = (this.ttsInstance as any).tokenizer(ipa, {
+          truncation: true,
+        });
+
+        if (task.isCancelled) return;
+
+        // 4. Fetch & slice voice embedding
+        task._emitProgress("fetching-voice", "Preparing voice style embedding...", 0.55);
+        const voiceTensor = await this.getVoiceVector(voice);
+
+        if (task.isCancelled || !this.ttsInstance) return;
+
+        const numTokens = input_ids.dims.at(-1);
+        const sliceIndex = 256 * Math.min(Math.max(numTokens - 2, 0), 509);
+        const styleSlice = voiceTensor.slice(sliceIndex, sliceIndex + 256);
+
+        const modelInputs = {
+          input_ids: input_ids,
+          style: new Tensor("float32", styleSlice, [1, 256]),
+          speed: new Tensor("float32", [speed], [1]),
+        };
+
+        // 5. Run neural inference sequentially through inferenceQueue for safe ONNX concurrency
+        const runInference = async () => {
+          if (task.isCancelled || !this.ttsInstance) return;
+          task._emitProgress("inferencing", "Running neural speech synthesis...", 0.7);
+
+          const { waveform } = await (this.ttsInstance as any).model(modelInputs);
+
+          if (task.isCancelled) return;
+
+          const rawAudio = new RawAudio(waveform.data, 24000);
+          const elapsedMs = Math.round(performance.now() - startTime);
+          const audioData = rawAudio.audio as Float32Array;
+          const sampleRate = rawAudio.sampling_rate || 24000;
+          const durationSec = audioData.length / sampleRate;
+          const rtf = elapsedMs / 1000 / durationSec;
+
+          const result: SynthesisResult = {
+            audio: audioData,
+            sampleRate,
+            durationSec,
+            genTimeMs: elapsedMs,
+            rtf,
+            ipa,
+            voice,
+            speed,
+            toWavBlob: () => createWavBlob(audioData, sampleRate),
+            toAudioUrl: () => URL.createObjectURL(createWavBlob(audioData, sampleRate)),
+            createAudioElement: () => {
+              const blob = createWavBlob(audioData, sampleRate);
+              const url = URL.createObjectURL(blob);
+              return new Audio(url);
+            },
+          };
+
+          task._complete(result);
+        };
+
+        this.inferenceQueue = this.inferenceQueue
+          .then(() => runInference())
+          .catch((err) => {
+            if (!task.isSettled) {
+              task._error(err);
+            }
+          });
+      } catch (err: any) {
+        if (!task.isSettled) {
+          task._error(err);
+        }
+      }
+    })().catch(() => {});
+
+    return task;
   }
 
   /**
@@ -501,6 +789,7 @@ export class KoreanSpeaker {
    * @returns `true` if cache was successfully deleted; otherwise `false`.
    */
   async clearStorage(): Promise<boolean> {
+    this.cancelAll("Cache cleared");
     const deleted = await deleteModelCache();
     if (typeof window !== "undefined" && "caches" in window) {
       try {
@@ -515,6 +804,7 @@ export class KoreanSpeaker {
    * Releases in-memory model instances and cached voice style tensors from WebAssembly RAM.
    */
   dispose(): void {
+    this.cancelAll("Speaker disposed");
     this.ttsInstance = null;
     this.voiceCache.clear();
   }

@@ -601,13 +601,22 @@ textarea#koreanInput:focus {
 /* Generate Button */
 .generate-btn-row {
   display: flex;
+  gap: 0.75rem;
 }
 
 .generate-btn {
-  width: 100%;
+  flex: 1;
   justify-content: center;
   font-size: 0.95rem;
   padding: 0.75rem 1.5rem;
+}
+
+.cancel-btn {
+  padding: 0.75rem 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
 }
 
 /* ==========================================================================
@@ -750,6 +759,19 @@ textarea#koreanInput:focus {
 .btn-secondary:hover:not(:disabled) {
   background: var(--border-medium);
   border-color: var(--text-muted);
+}
+
+.btn-danger {
+  background: rgba(244, 63, 94, 0.15);
+  color: var(--accent-rose);
+  border-color: rgba(244, 63, 94, 0.4);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--accent-rose);
+  color: white;
+  border-color: var(--accent-rose);
+  transform: translateY(-1px);
 }
 
 .btn-outline {

@@ -4,7 +4,11 @@
  */
 
 // High-level Speaker Controller
-export { KoreanSpeaker } from "./korean-speaker";
+export {
+  KoreanSpeaker,
+  SynthesisCancelledError,
+  DefaultSynthesisTask,
+} from "./korean-speaker.ts";
 export type {
   SpeakerInitOptions,
   SynthesisInput,
@@ -12,6 +16,10 @@ export type {
   IpaSynthesisInput,
   BaseSynthesisInput,
   SynthesisResult,
+  SynthesisTask,
+  SynthesisProgressStage,
+  SynthesisProgressEvent,
+  SynthesisProgressCallback,
   SpeakerProgressStatus,
   SpeakerProgress,
   SpeakerInitiateProgress,
@@ -20,7 +28,7 @@ export type {
   SpeakerDoneProgress,
   SpeakerReadyProgress,
   SpeakerProgressCallback,
-} from "./korean-speaker";
+} from "./korean-speaker.ts";
 
 // Korean Phonology & IPA Conversion Engine
 export {
@@ -45,7 +53,7 @@ export {
   JAMO_VOWEL_SYLLABLES,
   KOKORO_VOICES,
   KOREAN_SENTENCE_PRESETS,
-} from "./korean-engine";
+} from "./korean-engine.ts";
 
 export type {
   DecomposedHangul,
@@ -54,10 +62,10 @@ export type {
   SentenceItem,
   SentenceCategory,
   VoiceConfig,
-} from "./korean-engine";
+} from "./korean-engine.ts";
 
 // Audio & Waveform Utilities
-export { createWavBlob, Visualizer } from "./audio-utils";
+export { createWavBlob, Visualizer } from "./audio-utils.ts";
 
 // Model Storage & Cache Management
 export {
@@ -66,6 +74,6 @@ export {
   requestPersistentStorage,
   isStoragePersisted,
   formatBytes,
-} from "./storage-utils";
+} from "./storage-utils.ts";
 
-export type { StorageInfo } from "./storage-utils";
+export type { StorageInfo } from "./storage-utils.ts";
