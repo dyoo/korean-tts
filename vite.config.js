@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => {
       ? {
           lib: {
             entry: resolve(import.meta.dirname, "src/index.ts"),
-            name: "KoreanKokoro",
+            name: "KoreanTTS",
             fileName: (format) => `index.${format === "es" ? "js" : "cjs"}`,
             formats: ["es", "cjs"],
           },

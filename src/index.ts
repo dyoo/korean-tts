@@ -1,5 +1,5 @@
 /**
- * korean-kokoro: Korean phonology engine, IPA converter, audio utilities,
+ * korean-tts: Korean phonology engine, IPA converter, audio utilities,
  * model cache management, and KoreanSpeaker controller for Kokoro TTS WebAssembly.
  */
 

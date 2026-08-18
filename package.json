@@ -1,5 +1,5 @@
 {
-  "name": "korean-kokoro",
+  "name": "korean-tts",
   "version": "1.2.0",
   "description": "Korean phonology to IPA monophthong converter and audio utilities for Kokoro-82M TTS WASM",
   "type": "module",
