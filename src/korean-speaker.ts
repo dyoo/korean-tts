@@ -19,6 +19,15 @@ export type { StorageInfo };
 env.allowLocalModels = false;
 env.allowRemoteModels = true;
 
+// Configure ONNX WebAssembly backend for Web Worker & Safari compatibility.
+// In Safari and mobile WebKit browsers, Web Workers do not support nested Web Workers
+// (calling new Worker() inside a worker). When running in a Web Worker context,
+// enforce single-threaded WASM execution (numThreads = 1) to prevent nested worker instantiation errors.
+if (typeof self !== "undefined" && typeof window === "undefined" && env.backends?.onnx?.wasm) {
+  env.backends.onnx.wasm.numThreads = 1;
+  env.backends.onnx.wasm.proxy = false;
+}
+
 /**
  * All valid lifecycle status values reported during model downloading and loading.
  */

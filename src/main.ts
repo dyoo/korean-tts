@@ -160,6 +160,20 @@ function getWorker(): Worker {
     }
   };
 
+  ttsWorker.onerror = (err: ErrorEvent) => {
+    console.error("TTS Web Worker Error:", err);
+    onModelLoadError(err.message || "Web Worker failed to initialize or execute");
+    if (ttsWorker) {
+      ttsWorker.terminate();
+      ttsWorker = null;
+    }
+  };
+
+  ttsWorker.onmessageerror = (err: MessageEvent) => {
+    console.error("TTS Web Worker Message Error:", err);
+    onModelLoadError("Web Worker failed to deserialize message");
+  };
+
   return ttsWorker;
 }
 

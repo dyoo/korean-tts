@@ -1,3 +1,4 @@
+import { env } from "@huggingface/transformers";
 import {
   KoreanSpeaker,
   type SpeakerProgress,
@@ -6,6 +7,22 @@ import {
 } from "./korean-speaker";
 import { KOKORO_VOICES, type VoiceConfig } from "./korean-engine";
 import { getModelStorageInfo, deleteModelCache, type StorageInfo } from "./storage-utils";
+
+/**
+ * Configure ONNX WebAssembly execution backend for Web Worker compatibility across all browsers.
+ *
+ * Safari & Mobile WebKit Compatibility:
+ * 1. WebKit/Safari DedicatedWorkerGlobalScope does not support nested Web Workers (calling `new Worker()`
+ *    from inside a Worker). When multi-threaded WASM initializes with numThreads > 1 (or default 0),
+ *    ONNX Runtime attempts to spawn sub-worker threads, which throws a ReferenceError/TypeError in Safari.
+ * 2. Setting `numThreads = 1` forces ONNX Runtime WASM to run in single-threaded mode within this
+ *    already-isolated dedicated Web Worker thread.
+ * 3. Disable proxying (`proxy = false`) to avoid redundant main-thread worker proxies.
+ */
+if (env.backends?.onnx?.wasm) {
+  env.backends.onnx.wasm.numThreads = 1;
+  env.backends.onnx.wasm.proxy = false;
+}
 
 /**
  * Dedicated Web Worker for Kokoro-82M TTS synthesis in the demo app.
@@ -259,3 +276,44 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     }
   }
 };
+
+/**
+ * Global unhandled error handler for the worker context.
+ * Forwards any uncaught runtime exceptions to the main thread with explicit error details.
+ */
+self.onerror = (
+  event: Event | string,
+  _source?: string,
+  _lineno?: number,
+  _colno?: number,
+  error?: Error
+) => {
+  console.error("Unhandled TTS worker error:", event, error);
+  const message =
+    error?.message ||
+    (typeof event === "string"
+      ? event
+      : "message" in event && typeof (event as { message?: unknown }).message === "string"
+        ? (event as { message: string }).message
+        : "Web Worker encountered an unexpected error");
+  postResponse({
+    type: "LOAD_ERROR",
+    payload: { error: message },
+  });
+};
+
+/**
+ * Global unhandled promise rejection handler for the worker context.
+ */
+self.onunhandledrejection = (event: PromiseRejectionEvent) => {
+  console.error("Unhandled TTS worker rejection:", event.reason);
+  const message =
+    event.reason instanceof Error
+      ? event.reason.message
+      : String(event.reason || "Unhandled worker rejection");
+  postResponse({
+    type: "LOAD_ERROR",
+    payload: { error: message },
+  });
+};
+
