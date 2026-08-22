@@ -1,3 +1,4 @@
+import "./stream-polyfill.ts";
 import { env } from "@huggingface/transformers";
 import {
   KoreanSpeaker,

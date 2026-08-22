@@ -1,3 +1,4 @@
+import "./stream-polyfill.ts";
 import {
   KOKORO_VOICES,
   KOREAN_SENTENCE_PRESETS,

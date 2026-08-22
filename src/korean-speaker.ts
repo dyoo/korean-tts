@@ -1,3 +1,4 @@
+import "./stream-polyfill.ts";
 import { KokoroTTS } from "kokoro-js";
 import { Tensor, RawAudio, env } from "@huggingface/transformers";
 import {
