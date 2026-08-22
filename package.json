@@ -1,6 +1,6 @@
 {
   "name": "@dannyyoo/korean-tts",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "Korean phonology to IPA monophthong converter and audio utilities for Kokoro-82M TTS WASM",
   "type": "module",
   "license": "MIT",
