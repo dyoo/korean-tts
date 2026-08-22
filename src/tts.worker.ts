@@ -1,4 +1,6 @@
-import "./stream-polyfill.ts";
+import { polyfillReadableStreamAsyncIterator } from "./stream-polyfill";
+polyfillReadableStreamAsyncIterator();
+
 import { env } from "@huggingface/transformers";
 import {
   KoreanSpeaker,

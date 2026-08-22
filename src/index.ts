@@ -1,9 +1,10 @@
-import "./stream-polyfill.ts";
-
 /**
  * @dannyyoo/korean-tts: Korean phonology engine, IPA converter, audio utilities,
  * model cache management, and KoreanSpeaker controller for Kokoro TTS WebAssembly.
  */
+
+// Stream Polyfill for Safari & Web Workers
+export { polyfillReadableStreamAsyncIterator } from "./stream-polyfill.ts";
 
 // High-level Speaker Controller
 export {

@@ -60,6 +60,3 @@ export function polyfillReadableStreamAsyncIterator(): void {
     };
   }
 }
-
-// Auto-execute upon import so importing this module immediately establishes the polyfill
-polyfillReadableStreamAsyncIterator();

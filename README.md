@@ -19,7 +19,16 @@ This package can be used as an **npm library** in your own web applications/PWAs
 npm install @dannyyoo/korean-tts kokoro-js
 ```
 
-### 2. High-Level `KoreanSpeaker` Example
+### 2. Safari & Web Worker Compatibility
+
+In Safari/WebKit (macOS & iOS) and dedicated Web Worker environments, `ReadableStream` lacks native async iterator (`[Symbol.asyncIterator]`) support. Because underlying phonemizer dependencies decompress phonetic dictionaries at module evaluation, import and call `polyfillReadableStreamAsyncIterator()` at the top of your worker or main script:
+
+```typescript
+import { polyfillReadableStreamAsyncIterator } from "@dannyyoo/korean-tts";
+polyfillReadableStreamAsyncIterator();
+```
+
+### 3. High-Level `KoreanSpeaker` Example
 
 `KoreanSpeaker` manages model downloading, caching, voice selection, Hangul-to-IPA phonology conversion, audio synthesis, and offline cache maintenance in one unified interface:
 
