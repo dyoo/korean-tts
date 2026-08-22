@@ -21,16 +21,27 @@ npm install @dannyyoo/korean-tts kokoro-js
 
 ### 2. Safari & Web Worker Compatibility
 
-In Safari/WebKit (macOS & iOS) and dedicated Web Worker environments, `ReadableStream` lacks native async iterator (`[Symbol.asyncIterator]`) support. Because underlying phonemizer dependencies decompress phonetic dictionaries at module evaluation, import and call `polyfillReadableStreamAsyncIterator()` at the top of your worker or main script:
+1. **`ReadableStream` Polyfill**:
+   In Safari/WebKit (macOS & iOS) and dedicated Web Worker environments, `ReadableStream` lacks native async iterator (`[Symbol.asyncIterator]`) support. Because underlying phonemizer dependencies decompress phonetic dictionaries at module evaluation, import and call `polyfillReadableStreamAsyncIterator()` at the top of your worker or main script:
 
-```typescript
-import { polyfillReadableStreamAsyncIterator } from "@dannyyoo/korean-tts";
-polyfillReadableStreamAsyncIterator();
-```
+   ```typescript
+   import { polyfillReadableStreamAsyncIterator } from "@dannyyoo/korean-tts";
+   polyfillReadableStreamAsyncIterator();
+   ```
+
+2. **Web Worker Threading**:
+   Safari's `DedicatedWorkerGlobalScope` does not allow nested worker spawning (`new Worker()` inside a Worker). When running Kokoro in a dedicated Web Worker, enforce single-threaded WASM execution before initializing:
+   ```typescript
+   import { env } from "@huggingface/transformers";
+   if (env.backends?.onnx?.wasm) {
+     env.backends.onnx.wasm.numThreads = 1;
+     env.backends.onnx.wasm.proxy = false;
+   }
+   ```
 
 ### 3. High-Level `KoreanSpeaker` Example
 
-`KoreanSpeaker` manages model downloading, caching, voice selection, Hangul-to-IPA phonology conversion, audio synthesis, and offline cache maintenance in one unified interface:
+`KoreanSpeaker` manages model downloading, caching, voice selection, Hangul-to-IPA phonology conversion, audio synthesis, structured cancellation, and offline cache maintenance in one unified interface:
 
 ```typescript
 import { KoreanSpeaker } from "@dannyyoo/korean-tts";
@@ -52,18 +63,20 @@ await speaker.load({
 const voices = speaker.getVoices();
 // [{ id: "jf_nezumi", name: "Nezumi", traits: "...", ... }, ...]
 
-// 4. Synthesize speech from Korean text (or raw IPA)
-const result = await speaker.synthesize({
+// 4. Synthesize speech from Korean text (or raw IPA) with cancelable task handle
+const task = speaker.synthesize({
   text: "안녕하세요! 반갑습니다.",
   voice: "jf_nezumi", // Default: jf_nezumi
   speed: 1.0,
+  onProgress: (ev) => {
+    console.log(`Stage: ${ev.stage} (${Math.round(ev.progress * 100)}%)`);
+  },
 });
 
-// Or synthesize from pre-computed raw IPA directly:
-// const result = await speaker.synthesize({
-//   ipa: "annjʌŋhasejo! paŋkapsɯmnida.",
-//   voice: "jf_nezumi",
-// });
+// Cancel anytime if needed:
+// task.cancel("User navigated away");
+
+const result = await task;
 
 // Access metrics & outputs
 console.log(`Generated in ${result.genTimeMs}ms (${result.rtf.toFixed(2)}x RTF)`);
@@ -100,16 +113,21 @@ console.log(`Storage: ${storage.modelSizeFormatted} (Offline Cached: ${storage.i
 | `textToIpa(text)` | `koreanText: string` | `string` | Converts Korean text into normalized, phonetically assimilated IPA. |
 | `getVoiceVector(name)` | `voiceName: string` | `Promise<Float32Array>` | Fetches and caches voice style embedding vector from CDN. |
 | `preloadVoices(names)` | `voiceNames: string[]` | `Promise<void>` | Preloads multiple voice style vectors into memory. |
-| `synthesize(input)` | `SynthesisInput` | `Promise<SynthesisResult>` | Synthesizes `{ text }` or `{ ipa }` into audio with performance metrics. |
+| `synthesize(input)` | `SynthesisInput` | `SynthesisTask` | Starts synthesis and returns a cancelable `SynthesisTask` handle. |
+| `getActiveTasks()` | — | `SynthesisTask[]` | Returns a snapshot of all active/in-flight synthesis tasks. |
+| `cancelCurrent(reason?)` | `reason?: string` | `void` | Cancels the most recently initiated synthesis task. |
+| `cancelAll(reason?)` | `reason?: string` | `void` | Cancels all active and in-flight synthesis tasks. |
 | `speak(input)` | `SynthesisInput` | `Promise<{ result, audio }>` | Synthesizes and immediately begins audio playback via `HTMLAudioElement`. |
 | `getStorageInfo()` | — | `Promise<StorageInfo>` | Inspects browser `CacheStorage` for offline model size and origin quota. |
 | `clearStorage()` | — | `Promise<boolean>` | Deletes model weights from `CacheStorage` and frees WebAssembly RAM. |
-| `dispose()` | — | `void` | Releases in-memory model instances and cached style vectors. |
+| `dispose()` | — | `void` | Releases in-memory model instances, active tasks, and cached style vectors. |
 
 ### Exported Types & Interfaces
 
+* **`SynthesisTask`**: Structured PromiseLike task handle supporting `.cancel(reason?)`, `.onProgress(cb)`, `.stage`, `.isCancelled`, and `.isSettled`.
+* **`SynthesisCancelledError`**: Error thrown when a task is aborted (`err.name === 'AbortError'`, `err.isCancelled === true`).
 * **`SpeakerInitOptions`**: Configuration for model loading (`modelId`, `dtype`, `device`, `progressCallback`, `requestPersistence`).
-* **`SynthesisInput`**: Discriminated union `{ text: string; voice?: string; speed?: number } | { ipa: string; voice?: string; speed?: number }`.
+* **`SynthesisInput`**: Discriminated union `{ text: string; voice?: string; speed?: number; onProgress?: cb } | { ipa: string; voice?: string; speed?: number; onProgress?: cb }`.
 * **`SynthesisResult`**: Synthesis outputs (`audio: Float32Array`, `sampleRate`, `durationSec`, `genTimeMs`, `rtf`, `ipa`, `voice`, `speed`, `toWavBlob()`, `toAudioUrl()`, `createAudioElement()`).
 * **`SpeakerProgress`**: Discriminated union of progress lifecycle events (`SpeakerInitiateProgress`, `SpeakerDownloadProgress`, `SpeakerChunkProgress`, `SpeakerDoneProgress`, `SpeakerReadyProgress`).
 * **`SpeakerProgressStatus`**: `"initiate" | "download" | "progress" | "done" | "ready"`.
@@ -267,6 +285,15 @@ Converts the assimilated syllable tokens into accurate International Phonetic Al
      - `오이` → `oˌi`
      - `아이` → `aˌi`
      - `좋은` → `ʨoˌɯn`
+6. **Expressive Question Intonation (`[↗?]`)**:
+   - Question sentences ending in `?` are augmented with Kokoro's native rising pitch contour operator (`↗` — Token ID 175), sweeping fundamental frequency ($F_0$) upward on the final syllable for authentic spoken Korean interrogative delivery:
+     - `이거 뭐예요?` → `iɡʌ mwʌˌjeˌjo↗?`
+     - `밥 먹었어?` → `pap̚ mʌɡʌs͈ʌ↗?`
+7. **Single-Word / Isolated Syllable Duration Closure (`[.]`)**:
+   - Unpunctuated isolated vocabulary items receive declarative sentence-final boundary closure (`.`) prior to tokenization. This prevents neural duration predictors from treating single syllables as unfinished floating phrases, ensuring crisp $\sim 200\text{ms}$ pronunciations rather than drawn-out, drone-like vowels:
+     - `넋` → `nʌk̚.`
+     - `가` → `ka.`
+     - `물` → `mul.`
 
 ---
 
