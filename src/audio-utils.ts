@@ -64,8 +64,9 @@ export class Visualizer {
   drawWaveformStatic(float32Data: Float32Array | null): void {
     if (!this.canvas || !this.ctx) return;
     const parentWidth = this.canvas.parentElement?.clientWidth || 600;
-    const width = (this.canvas.width = parentWidth * window.devicePixelRatio);
-    const height = (this.canvas.height = 100 * window.devicePixelRatio);
+    const dpr = window.devicePixelRatio || 1;
+    const width = (this.canvas.width = Math.round(parentWidth * dpr));
+    const height = (this.canvas.height = Math.round(100 * dpr));
     const ctx = this.ctx;
     ctx.clearRect(0, 0, width, height);
 
@@ -112,17 +113,20 @@ export class Visualizer {
     this.analyser = analyser;
     this.stopLive();
 
+    if (!this.canvas || !this.ctx || !this.analyser) return;
+
     const bufferLength = this.analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
+
+    const parentWidth = this.canvas.parentElement?.clientWidth || 600;
+    const dpr = window.devicePixelRatio || 1;
+    const width = (this.canvas.width = Math.round(parentWidth * dpr));
+    const height = (this.canvas.height = Math.round(100 * dpr));
+    const ctx = this.ctx;
 
     const render = () => {
       this.animationId = requestAnimationFrame(render);
       if (!this.canvas || !this.ctx || !this.analyser) return;
-
-      const parentWidth = this.canvas.parentElement?.clientWidth || 600;
-      const width = (this.canvas.width = parentWidth * window.devicePixelRatio);
-      const height = (this.canvas.height = 100 * window.devicePixelRatio);
-      const ctx = this.ctx;
 
       this.analyser.getByteFrequencyData(dataArray);
 

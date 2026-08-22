@@ -527,6 +527,11 @@ async function generateSpeech(): Promise<void> {
   genIcon.style.display = "none";
   genBtnText.textContent = "Synthesizing...";
 
+  // Unlock Web Audio context during user click gesture for Safari autoplay policy
+  try {
+    getAudioContext();
+  } catch (_) {}
+
   stopAudio();
 
   try {
@@ -615,12 +620,17 @@ async function generateSpeech(): Promise<void> {
 function getAudioContext(): AudioContext {
   if (!audioContext) {
     const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-    audioContext = new AudioCtx({ sampleRate: 24000 });
+    try {
+      audioContext = new AudioCtx({ sampleRate: 24000 });
+    } catch {
+      // Safari/WebKit throws NotSupportedError on custom sample rates
+      audioContext = new AudioCtx();
+    }
     analyserNode = audioContext.createAnalyser();
     analyserNode.fftSize = 256;
   }
   if (audioContext.state === "suspended") {
-    audioContext.resume();
+    audioContext.resume().catch(() => {});
   }
   return audioContext;
 }
@@ -628,36 +638,40 @@ function getAudioContext(): AudioContext {
 function playAudio(startOffset: number = 0): void {
   if (!currentAudioBuffer) return;
 
-  const ctx = getAudioContext();
-  stopAudio();
+  try {
+    const ctx = getAudioContext();
+    stopAudio();
 
-  const buffer = ctx.createBuffer(1, currentAudioBuffer.length, 24000);
-  buffer.getChannelData(0).set(currentAudioBuffer);
+    const buffer = ctx.createBuffer(1, currentAudioBuffer.length, 24000);
+    buffer.getChannelData(0).set(currentAudioBuffer);
 
-  activeAudioSource = ctx.createBufferSource();
-  activeAudioSource.buffer = buffer;
+    activeAudioSource = ctx.createBufferSource();
+    activeAudioSource.buffer = buffer;
 
-  if (analyserNode) {
-    activeAudioSource.connect(analyserNode);
-    analyserNode.connect(ctx.destination);
-    visualizer.startLive(analyserNode);
-  }
-
-  playStartTime = ctx.currentTime - startOffset;
-  pauseOffset = startOffset;
-  activeAudioSource.start(0, startOffset);
-  isPlaying = true;
-
-  playBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
-
-  activeAudioSource.onended = () => {
-    if (isPlaying) {
-      stopAudio();
-      visualizer.drawWaveformStatic(currentAudioBuffer!);
+    if (analyserNode) {
+      activeAudioSource.connect(analyserNode);
+      analyserNode.connect(ctx.destination);
+      visualizer.startLive(analyserNode);
     }
-  };
 
-  startProgressLoop();
+    playStartTime = ctx.currentTime - startOffset;
+    pauseOffset = startOffset;
+    activeAudioSource.start(0, startOffset);
+    isPlaying = true;
+
+    playBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
+
+    activeAudioSource.onended = () => {
+      if (isPlaying) {
+        stopAudio();
+        visualizer.drawWaveformStatic(currentAudioBuffer!);
+      }
+    };
+
+    startProgressLoop();
+  } catch (err) {
+    console.warn("Web Audio playback failed or blocked:", err);
+  }
 }
 
 function stopAudio(): void {
