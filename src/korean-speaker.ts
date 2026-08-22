@@ -675,12 +675,18 @@ export class KoreanSpeaker {
 
         // 2. Phonology Conversion
         task._emitProgress("converting-phonology", "Converting Hangul to phonemes...", 0.25);
-        const ipa = "ipa" in input ? input.ipa : this.textToIpa(input.text);
+        let ipa = "ipa" in input ? input.ipa : this.textToIpa(input.text);
 
         if (task.isCancelled) return;
 
         if (!ipa.trim()) {
           throw new Error("Phonetic payload is empty");
+        }
+
+        // Ensure terminal punctuation closure for natural declarative prosody on isolated words/syllables
+        // Without trailing punctuation, neural duration predictors stretch unpunctuated tokens into drawn-out vowels
+        if (!/[.!?~;:]\s*$/.test(ipa)) {
+          ipa = ipa.trim() + ".";
         }
 
         const startTime = performance.now();

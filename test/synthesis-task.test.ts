@@ -215,5 +215,27 @@ describe("Speech Synthesis Task & Cancellation (Issue #3)", () => {
         }
       );
     });
+
+    it("should append terminal punctuation to unpunctuated input for crisp single-word prosody", async () => {
+      let tokenizedText = "";
+      const speaker = new KoreanSpeaker();
+      (speaker as any).ttsInstance = {
+        tokenizer: (text: string) => {
+          tokenizedText = text;
+          return { input_ids: { dims: [1, 4] } };
+        },
+        model: async () => ({
+          waveform: { data: new Float32Array(24000) },
+        }),
+      };
+      (speaker as any).getVoiceVector = async () => new Float32Array(512 * 256);
+
+      // Single unpunctuated word/syllable "넋" -> "nʌk̚."
+      const task = speaker.synthesize({ text: "넋" });
+      const result = await task;
+
+      assert.ok(tokenizedText.endsWith("."));
+      assert.equal(result.ipa, "nʌk̚.");
+    });
   });
 });
