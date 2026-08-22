@@ -1,4 +1,5 @@
-import { KokoroTTS } from "kokoro-js";
+import "./stream-polyfill.ts";
+import type { KokoroTTS } from "kokoro-js";
 import { Tensor, RawAudio, env } from "@huggingface/transformers";
 import {
   convertKoreanToSpeechText,
@@ -511,6 +512,7 @@ export class KoreanSpeaker {
         await requestPersistentStorage().catch(() => {});
       }
 
+      const { KokoroTTS } = await import("kokoro-js");
       this.ttsInstance = await KokoroTTS.from_pretrained(this.modelId, {
         dtype: this.dtype,
         device: this.device,

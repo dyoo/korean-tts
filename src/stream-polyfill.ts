@@ -60,3 +60,6 @@ export function polyfillReadableStreamAsyncIterator(): void {
     };
   }
 }
+
+// Ensure the polyfill is active as soon as this module is evaluated
+polyfillReadableStreamAsyncIterator();
