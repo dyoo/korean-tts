@@ -109,6 +109,11 @@ describe("Hangul to IPA Conversion (음소 변환 및 Kokoro IPA)", () => {
       assert.equal(koreanToIpa("여우"), "jʌˌu");
       assert.equal(koreanToIpa("새우"), "sɛˌu");
     });
+
+    it("should append rising pitch contour token (↗) for question marks", () => {
+      assert.equal(koreanToIpa("이거 뭐예요?"), "iɡʌ mwʌˌjeˌjo↗?");
+      assert.equal(koreanToIpa("밥 먹었어?"), "pap̚ mʌɡʌs͈ʌ↗?");
+    });
   });
 
   describe("3. Preset Sentences IPA Generation", () => {

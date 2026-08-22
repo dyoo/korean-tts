@@ -756,7 +756,8 @@ export function convertKoreanToSpeechText(inputText: string): string {
   for (const part of parts) {
     if (!part) continue;
     if (/^\s+$/.test(part) || /^[.,!?~;:"]+$/.test(part)) {
-      result += part;
+      // Map '?' to '↗?' to trigger Kokoro's rising pitch contour operator for expressive questions
+      result += part.replace(/\?/g, "↗?");
       continue;
     }
 
