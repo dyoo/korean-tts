@@ -1,7 +1,7 @@
 import "./stream-polyfill.ts";
 
 /**
- * korean-tts: Korean phonology engine, IPA converter, audio utilities,
+ * @dannyyoo/korean-tts: Korean phonology engine, IPA converter, audio utilities,
  * model cache management, and KoreanSpeaker controller for Kokoro TTS WebAssembly.
  */
 

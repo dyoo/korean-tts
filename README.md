@@ -16,7 +16,7 @@ This package can be used as an **npm library** in your own web applications/PWAs
 ### 1. Installation
 
 ```bash
-npm install korean-tts kokoro-js
+npm install @dannyyoo/korean-tts kokoro-js
 ```
 
 ### 2. High-Level `KoreanSpeaker` Example
@@ -24,7 +24,7 @@ npm install korean-tts kokoro-js
 `KoreanSpeaker` manages model downloading, caching, voice selection, Hangul-to-IPA phonology conversion, audio synthesis, and offline cache maintenance in one unified interface:
 
 ```typescript
-import { KoreanSpeaker } from "korean-tts";
+import { KoreanSpeaker } from "@dannyyoo/korean-tts";
 
 // 1. Initialize speaker instance
 const speaker = new KoreanSpeaker({
@@ -122,7 +122,7 @@ import {
   numberToNativeKorean,
   createWavBlob,
   Visualizer,
-} from "korean-tts";
+} from "@dannyyoo/korean-tts";
 
 // 1. Phonetic Hangul pronunciation according to Standard Korean rules (표준 발음법)
 const pron = koreanToPronunciation("국밥"); // -> "국빱"
